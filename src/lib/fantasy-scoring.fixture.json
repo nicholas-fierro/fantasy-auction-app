@@ -1,0 +1,2193 @@
+{
+ "kicking": [
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 5,
+    "fg_long": 50,
+    "fg_made": 5,
+    "fg_made_20_29": 2,
+    "fg_made_30_39": 1,
+    "fg_made_40_49": 1,
+    "fg_made_50_59": 1,
+    "fg_made_list": [
+     50,
+     27,
+     31,
+     45,
+     29
+    ]
+   },
+   "week": 1
+  },
+  {
+   "season": 2021,
+   "season_type": "POST",
+   "stats": {
+    "fg_att": 1,
+    "fg_long": 55,
+    "fg_made": 1,
+    "fg_made_50_59": 1,
+    "fg_made_list": [
+     55
+    ]
+   },
+   "week": 19
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 2,
+    "fg_long": 54,
+    "fg_made": 2,
+    "fg_made_20_29": 1,
+    "fg_made_50_59": 1,
+    "fg_made_list": [
+     28,
+     54
+    ],
+    "pat_att": 4,
+    "pat_made": 4
+   },
+   "week": 2
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 3,
+    "fg_long": 50,
+    "fg_made": 3,
+    "fg_made_30_39": 1,
+    "fg_made_40_49": 1,
+    "fg_made_50_59": 1,
+    "fg_made_list": [
+     40,
+     34,
+     50
+    ],
+    "pat_att": 1,
+    "pat_made": 1
+   },
+   "week": 1
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 2,
+    "fg_long": 39,
+    "fg_made": 1,
+    "fg_made_30_39": 1,
+    "fg_made_list": [
+     39
+    ],
+    "fg_missed": 1,
+    "fg_missed_40_49": 1,
+    "fg_missed_list": [
+     47
+    ],
+    "pat_att": 2,
+    "pat_made": 2
+   },
+   "week": 3
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 4,
+    "fg_long": 49,
+    "fg_made": 3,
+    "fg_made_20_29": 1,
+    "fg_made_40_49": 2,
+    "fg_made_list": [
+     49,
+     27,
+     49
+    ],
+    "fg_missed": 1,
+    "fg_missed_40_49": 1,
+    "fg_missed_list": [
+     49
+    ]
+   },
+   "week": 2
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 1,
+    "fg_missed": 1,
+    "fg_missed_30_39": 1,
+    "fg_missed_list": [
+     38
+    ],
+    "pat_att": 2,
+    "pat_made": 2
+   },
+   "week": 2
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 3,
+    "fg_long": 56,
+    "fg_made": 2,
+    "fg_made_40_49": 1,
+    "fg_made_50_59": 1,
+    "fg_made_list": [
+     46,
+     56
+    ],
+    "fg_missed": 1,
+    "fg_missed_30_39": 1,
+    "fg_missed_list": [
+     37
+    ],
+    "pat_att": 5,
+    "pat_made": 5
+   },
+   "week": 3
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 1,
+    "fg_long": 44,
+    "fg_made": 1,
+    "fg_made_40_49": 1,
+    "fg_made_list": [
+     44
+    ],
+    "pat_att": 5,
+    "pat_made": 4,
+    "pat_missed": 1
+   },
+   "week": 5
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 2,
+    "fg_long": 46,
+    "fg_made": 2,
+    "fg_made_40_49": 2,
+    "fg_made_list": [
+     44,
+     46
+    ],
+    "pat_att": 3,
+    "pat_made": 2,
+    "pat_missed": 1
+   },
+   "week": 2
+  },
+  {
+   "season": 2021,
+   "season_type": "POST",
+   "stats": {
+    "fg_att": 1,
+    "fg_long": 44,
+    "fg_made": 1,
+    "fg_made_40_49": 1,
+    "fg_made_list": [
+     44
+    ],
+    "pat_att": 3,
+    "pat_made": 3
+   },
+   "week": 21
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 3,
+    "fg_long": 49,
+    "fg_made": 3,
+    "fg_made_20_29": 1,
+    "fg_made_30_39": 1,
+    "fg_made_40_49": 1,
+    "fg_made_list": [
+     49,
+     33,
+     28
+    ],
+    "pat_att": 3,
+    "pat_made": 3
+   },
+   "week": 2
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 2,
+    "fg_long": 26,
+    "fg_made": 1,
+    "fg_made_20_29": 1,
+    "fg_made_list": [
+     26
+    ],
+    "fg_missed": 1,
+    "fg_missed_40_49": 1,
+    "fg_missed_list": [
+     44
+    ],
+    "pat_att": 5,
+    "pat_made": 5
+   },
+   "week": 4
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 3,
+    "fg_long": 43,
+    "fg_made": 3,
+    "fg_made_30_39": 1,
+    "fg_made_40_49": 2,
+    "fg_made_list": [
+     42,
+     34,
+     43
+    ],
+    "pat_att": 1,
+    "pat_made": 1
+   },
+   "week": 1
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 2,
+    "fg_long": 52,
+    "fg_made": 2,
+    "fg_made_40_49": 1,
+    "fg_made_50_59": 1,
+    "fg_made_list": [
+     52,
+     49
+    ],
+    "pat_att": 5,
+    "pat_made": 4,
+    "pat_missed": 1
+   },
+   "week": 1
+  },
+  {
+   "season": 2024,
+   "season_type": "REG",
+   "stats": {
+    "pat_att": 2,
+    "pat_made": 2
+   },
+   "week": 4
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 4,
+    "fg_long": 39,
+    "fg_made": 4,
+    "fg_made_20_29": 2,
+    "fg_made_30_39": 2,
+    "fg_made_list": [
+     24,
+     33,
+     39,
+     25
+    ],
+    "pat_att": 2,
+    "pat_made": 1,
+    "pat_missed": 1
+   },
+   "week": 2
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 2,
+    "fg_long": 28,
+    "fg_made": 2,
+    "fg_made_20_29": 2,
+    "fg_made_list": [
+     25,
+     28
+    ],
+    "pat_att": 2,
+    "pat_made": 2
+   },
+   "week": 4
+  },
+  {
+   "season": 2024,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 6,
+    "fg_long": 57,
+    "fg_made": 6,
+    "fg_made_20_29": 1,
+    "fg_made_40_49": 2,
+    "fg_made_50_59": 3,
+    "fg_made_list": [
+     57,
+     51,
+     44,
+     56,
+     40,
+     25
+    ]
+   },
+   "week": 1
+  },
+  {
+   "season": 2024,
+   "season_type": "REG",
+   "stats": {
+    "fg_att": 3,
+    "fg_long": 39,
+    "fg_made": 3,
+    "fg_made_20_29": 1,
+    "fg_made_30_39": 2,
+    "fg_made_list": [
+     39,
+     22,
+     34
+    ],
+    "pat_att": 1,
+    "pat_made": 1
+   },
+   "week": 2
+  }
+ ],
+ "offense": [
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 13,
+    "carries": 10,
+    "completions": 6,
+    "fantasy_points": 3.5,
+    "fantasy_points_ppr": 3.5,
+    "fumbles_total": 1,
+    "passing_interceptions": 1,
+    "passing_yards": 60,
+    "rushing_yards": 31,
+    "sack_fumbles": 1,
+    "sack_yards_lost": -25,
+    "sacks_suffered": 2
+   },
+   "week": 2
+  },
+  {
+   "season": 2018,
+   "season_type": "POST",
+   "stats": {
+    "attempts": 51,
+    "completions": 25,
+    "fantasy_points": 25.24,
+    "fantasy_points_ppr": 25.24,
+    "passing_2pt_conversions": 1,
+    "passing_interceptions": 1,
+    "passing_tds": 3,
+    "passing_yards": 331,
+    "sack_yards_lost": -15,
+    "sacks_suffered": 2
+   },
+   "week": 19
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 25,
+    "carries": 5,
+    "completions": 20,
+    "fantasy_points": 23,
+    "fantasy_points_ppr": 23,
+    "passing_interceptions": 1,
+    "passing_tds": 3,
+    "passing_yards": 290,
+    "rushing_yards": 14,
+    "sack_yards_lost": -12,
+    "sacks_suffered": 2
+   },
+   "week": 4
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 22,
+    "carries": 1,
+    "completions": 13,
+    "fantasy_points": 11.62,
+    "fantasy_points_ppr": 11.62,
+    "passing_interceptions": 1,
+    "passing_tds": 1,
+    "passing_yards": 128,
+    "rushing_yards": 45,
+    "sack_yards_lost": -9,
+    "sacks_suffered": 2
+   },
+   "week": 3
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 29,
+    "carries": 4,
+    "completions": 16,
+    "fantasy_points": 14.74,
+    "fantasy_points_ppr": 14.74,
+    "fumbles_total": 2,
+    "passing_interceptions": 2,
+    "passing_tds": 1,
+    "passing_yards": 211,
+    "rushing_fumbles": 1,
+    "rushing_tds": 1,
+    "rushing_yards": 3,
+    "sack_fumbles": 1,
+    "sack_yards_lost": -42,
+    "sacks_suffered": 6
+   },
+   "week": 2
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 48,
+    "carries": 2,
+    "completions": 35,
+    "fantasy_points": 33.5,
+    "fantasy_points_ppr": 33.5,
+    "passing_2pt_conversions": 1,
+    "passing_interceptions": 1,
+    "passing_tds": 4,
+    "passing_yards": 425,
+    "rushing_yards": 5,
+    "sack_yards_lost": -13,
+    "sacks_suffered": 2
+   },
+   "week": 2
+  },
+  {
+   "season": 2024,
+   "season_type": "POST",
+   "stats": {
+    "attempts": 26,
+    "carries": 11,
+    "completions": 18,
+    "fantasy_points": 30.1,
+    "fantasy_points_ppr": 30.1,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "passing_2pt_conversions": 1,
+    "passing_tds": 1,
+    "passing_yards": 245,
+    "rushing_fumbles": 1,
+    "rushing_fumbles_lost": 1,
+    "rushing_tds": 2,
+    "rushing_yards": 43,
+    "sack_yards_lost": -12,
+    "sacks_suffered": 2
+   },
+   "week": 21
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 49,
+    "carries": 3,
+    "completions": 30,
+    "fantasy_points": 18.82,
+    "fantasy_points_ppr": 18.82,
+    "passing_2pt_conversions": 1,
+    "passing_tds": 1,
+    "passing_yards": 298,
+    "rushing_yards": 9,
+    "sack_yards_lost": -45,
+    "sacks_suffered": 7
+   },
+   "week": 4
+  },
+  {
+   "season": 2018,
+   "season_type": "POST",
+   "stats": {
+    "attempts": 32,
+    "carries": 2,
+    "completions": 20,
+    "fantasy_points": 22.94,
+    "fantasy_points_ppr": 22.94,
+    "passing_2pt_conversions": 1,
+    "passing_tds": 1,
+    "passing_yards": 266,
+    "rushing_tds": 1,
+    "rushing_yards": 3,
+    "sack_yards_lost": -8,
+    "sacks_suffered": 1
+   },
+   "week": 19
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 42,
+    "carries": 7,
+    "completions": 24,
+    "fantasy_points": 19.7,
+    "fantasy_points_ppr": 19.7,
+    "passing_2pt_conversions": 1,
+    "passing_tds": 2,
+    "passing_yards": 200,
+    "rushing_yards": 17,
+    "sack_yards_lost": -21,
+    "sacks_suffered": 4
+   },
+   "week": 2
+  },
+  {
+   "season": 2018,
+   "season_type": "POST",
+   "stats": {
+    "attempts": 32,
+    "carries": 3,
+    "completions": 22,
+    "fantasy_points": 9.9,
+    "fantasy_points_ppr": 9.9,
+    "passing_2pt_conversions": 1,
+    "passing_yards": 160,
+    "rushing_yards": 15,
+    "sack_yards_lost": -6,
+    "sacks_suffered": 1
+   },
+   "week": 18
+  },
+  {
+   "season": 2024,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 37,
+    "carries": 4,
+    "completions": 21,
+    "fantasy_points": 16.44,
+    "fantasy_points_ppr": 16.44,
+    "fumbles_lost_total": 2,
+    "fumbles_total": 2,
+    "passing_2pt_conversions": 1,
+    "passing_tds": 2,
+    "passing_yards": 196,
+    "rushing_fumbles": 1,
+    "rushing_fumbles_lost": 1,
+    "rushing_yards": 26,
+    "sack_fumbles": 1,
+    "sack_fumbles_lost": 1,
+    "sack_yards_lost": -48,
+    "sacks_suffered": 8
+   },
+   "week": 3
+  },
+  {
+   "season": 2018,
+   "season_type": "POST",
+   "stats": {
+    "carries": 13,
+    "fantasy_points": 3.9,
+    "fantasy_points_ppr": 5.9,
+    "receiving_yards": -1,
+    "receptions": 2,
+    "rushing_2pt_conversions": 1,
+    "rushing_yards": 20,
+    "targets": 3
+   },
+   "week": 18
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "carries": 12,
+    "fantasy_points": 20.8,
+    "fantasy_points_ppr": 21.8,
+    "receiving_yards": -2,
+    "receptions": 1,
+    "rushing_2pt_conversions": 2,
+    "rushing_tds": 2,
+    "rushing_yards": 50,
+    "targets": 2
+   },
+   "week": 1
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "carries": 9,
+    "fantasy_points": 8.4,
+    "fantasy_points_ppr": 11.4,
+    "receiving_yards": 37,
+    "receptions": 3,
+    "rushing_2pt_conversions": 1,
+    "rushing_yards": 27,
+    "targets": 5
+   },
+   "week": 1
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 27,
+    "carries": 7,
+    "completions": 20,
+    "fantasy_points": 27.14,
+    "fantasy_points_ppr": 27.14,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "passing_tds": 1,
+    "passing_yards": 226,
+    "rushing_2pt_conversions": 1,
+    "rushing_tds": 1,
+    "rushing_yards": 81,
+    "sack_fumbles": 1,
+    "sack_fumbles_lost": 1,
+    "sack_yards_lost": -19,
+    "sacks_suffered": 2
+   },
+   "week": 4
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 29,
+    "carries": 5,
+    "completions": 16,
+    "fantasy_points": 20.66,
+    "fantasy_points_ppr": 20.66,
+    "fumbles_total": 1,
+    "passing_interceptions": 1,
+    "passing_tds": 1,
+    "passing_yards": 154,
+    "rushing_2pt_conversions": 1,
+    "rushing_tds": 1,
+    "rushing_yards": 45,
+    "sack_yards_lost": -10,
+    "sacks_suffered": 3
+   },
+   "week": 1
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "carries": 15,
+    "fantasy_points": 18.6,
+    "fantasy_points_ppr": 27.6,
+    "receiving_yards": 102,
+    "receptions": 9,
+    "rushing_2pt_conversions": 1,
+    "rushing_yards": 64,
+    "targets": 13
+   },
+   "week": 1
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "carries": 12,
+    "fantasy_points": 12.5,
+    "fantasy_points_ppr": 20.5,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "receiving_2pt_conversions": 1,
+    "receiving_yards": 71,
+    "receptions": 8,
+    "rushing_fumbles": 1,
+    "rushing_fumbles_lost": 1,
+    "rushing_yards": 54,
+    "targets": 8
+   },
+   "week": 4
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 3.7,
+    "fantasy_points_ppr": 5.7,
+    "receiving_2pt_conversions": 1,
+    "receiving_yards": 17,
+    "receptions": 2,
+    "targets": 3
+   },
+   "week": 5
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 13.4,
+    "fantasy_points_ppr": 20.4,
+    "receiving_2pt_conversions": 1,
+    "receiving_tds": 1,
+    "receiving_yards": 54,
+    "receptions": 7,
+    "targets": 9
+   },
+   "week": 2
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 2,
+    "fantasy_points_ppr": 2,
+    "receiving_2pt_conversions": 1
+   },
+   "week": 4
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "carries": 18,
+    "fantasy_points": 9,
+    "fantasy_points_ppr": 9,
+    "receiving_2pt_conversions": 1,
+    "rushing_yards": 70,
+    "targets": 1
+   },
+   "week": 4
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 3.4,
+    "fantasy_points_ppr": 4.4,
+    "receiving_2pt_conversions": 1,
+    "receiving_yards": 14,
+    "receptions": 1,
+    "targets": 1
+   },
+   "week": 4
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 52,
+    "carries": 3,
+    "completions": 32,
+    "fantasy_points": 28.68,
+    "fantasy_points_ppr": 28.68,
+    "fumbles_lost_total": 2,
+    "fumbles_total": 2,
+    "passing_2pt_conversions": 1,
+    "passing_tds": 3,
+    "passing_yards": 442,
+    "rushing_yards": 10,
+    "sack_fumbles": 2,
+    "sack_fumbles_lost": 2,
+    "sack_yards_lost": -19,
+    "sacks_suffered": 4
+   },
+   "week": 5
+  },
+  {
+   "season": 2024,
+   "season_type": "REG",
+   "stats": {
+    "carries": 16,
+    "fantasy_points": 14.8,
+    "fantasy_points_ppr": 18.8,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "receiving_yards": 43,
+    "receptions": 4,
+    "rushing_fumbles": 1,
+    "rushing_fumbles_lost": 1,
+    "rushing_tds": 1,
+    "rushing_yards": 65,
+    "targets": 4
+   },
+   "week": 3
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 36,
+    "carries": 4,
+    "completions": 26,
+    "fantasy_points": 18.44,
+    "fantasy_points_ppr": 18.44,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 2,
+    "passing_interceptions": 1,
+    "passing_tds": 2,
+    "passing_yards": 246,
+    "rushing_fumbles": 1,
+    "rushing_fumbles_lost": 1,
+    "rushing_yards": 46,
+    "sack_fumbles": 1,
+    "sack_yards_lost": -10,
+    "sacks_suffered": 1
+   },
+   "week": 2
+  },
+  {
+   "season": 2024,
+   "season_type": "POST",
+   "stats": {
+    "attempts": 18,
+    "carries": 7,
+    "completions": 15,
+    "fantasy_points": 15.7,
+    "fantasy_points_ppr": 15.7,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "passing_tds": 2,
+    "passing_yards": 185,
+    "rushing_fumbles": 1,
+    "rushing_fumbles_lost": 1,
+    "rushing_yards": 23,
+    "sack_yards_lost": -2,
+    "sacks_suffered": 1
+   },
+   "week": 19
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 40,
+    "carries": 6,
+    "completions": 22,
+    "fantasy_points": 11.6,
+    "fantasy_points_ppr": 11.6,
+    "fumbles_lost_total": 2,
+    "fumbles_total": 2,
+    "passing_interceptions": 1,
+    "passing_tds": 1,
+    "passing_yards": 235,
+    "rushing_2pt_conversions": 1,
+    "rushing_fumbles": 1,
+    "rushing_fumbles_lost": 1,
+    "rushing_yards": 22,
+    "sack_fumbles": 1,
+    "sack_fumbles_lost": 1,
+    "sack_yards_lost": -25,
+    "sacks_suffered": 6
+   },
+   "week": 2
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 38,
+    "carries": 4,
+    "completions": 25,
+    "fantasy_points": 18.34,
+    "fantasy_points_ppr": 18.34,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "passing_tds": 2,
+    "passing_yards": 251,
+    "rushing_fumbles": 1,
+    "rushing_fumbles_lost": 1,
+    "rushing_yards": 23,
+    "sack_yards_lost": -28,
+    "sacks_suffered": 3
+   },
+   "week": 1
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 15.2,
+    "fantasy_points_ppr": 18.2,
+    "receiving_tds": 1,
+    "receiving_yards": 32,
+    "receptions": 3,
+    "special_teams_tds": 1,
+    "targets": 4
+   },
+   "week": 3
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "carries": 1,
+    "fantasy_points": 13.6,
+    "fantasy_points_ppr": 16.6,
+    "receiving_yards": 73,
+    "receptions": 3,
+    "rushing_yards": 3,
+    "special_teams_tds": 1,
+    "targets": 5
+   },
+   "week": 3
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "carries": 5,
+    "fantasy_points": 8.8,
+    "fantasy_points_ppr": 9.8,
+    "receiving_yards": 1,
+    "receptions": 1,
+    "rushing_yards": 27,
+    "special_teams_tds": 1,
+    "targets": 1
+   },
+   "week": 2
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 6,
+    "fantasy_points_ppr": 6,
+    "special_teams_tds": 1
+   },
+   "week": 2
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 6,
+    "fantasy_points_ppr": 6,
+    "special_teams_tds": 1
+   },
+   "week": 1
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 6,
+    "fantasy_points_ppr": 6,
+    "special_teams_tds": 1
+   },
+   "week": 2
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "fumble_recovery_tds": 1
+   },
+   "week": 2
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 1,
+    "fantasy_points_ppr": 2,
+    "fumble_recovery_tds": 1,
+    "receiving_yards": 10,
+    "receptions": 1,
+    "targets": 2
+   },
+   "week": 2
+  },
+  {
+   "season": 2024,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 6.7,
+    "fantasy_points_ppr": 12.7,
+    "fumble_recovery_tds": 1,
+    "receiving_yards": 67,
+    "receptions": 6,
+    "targets": 6
+   },
+   "week": 2
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 8.6,
+    "fantasy_points_ppr": 16.6,
+    "fumble_recovery_tds": 1,
+    "receiving_yards": 86,
+    "receptions": 8,
+    "targets": 10
+   },
+   "week": 4
+  },
+  {
+   "season": 2024,
+   "season_type": "REG",
+   "stats": {
+    "fumble_recovery_tds": 1
+   },
+   "week": 4
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 0.6,
+    "fantasy_points_ppr": 1.6,
+    "fumble_recovery_tds": 1,
+    "receiving_yards": 6,
+    "receptions": 1,
+    "targets": 4
+   },
+   "week": 5
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 44,
+    "completions": 31,
+    "fantasy_points": 28.56,
+    "fantasy_points_ppr": 28.56,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "passing_tds": 4,
+    "passing_yards": 364,
+    "sack_fumbles": 1,
+    "sack_fumbles_lost": 1,
+    "sack_yards_lost": -18,
+    "sacks_suffered": 2
+   },
+   "week": 2
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 34,
+    "carries": 3,
+    "completions": 16,
+    "fantasy_points": 1.26,
+    "fantasy_points_ppr": 1.26,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "passing_interceptions": 2,
+    "passing_yards": 184,
+    "rushing_yards": -1,
+    "sack_fumbles": 1,
+    "sack_fumbles_lost": 1,
+    "sack_yards_lost": -14,
+    "sacks_suffered": 3
+   },
+   "week": 4
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 35,
+    "carries": 3,
+    "completions": 20,
+    "fantasy_points": 7.1,
+    "fantasy_points_ppr": 7.1,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "passing_interceptions": 2,
+    "passing_tds": 1,
+    "passing_yards": 185,
+    "rushing_yards": 17,
+    "sack_fumbles": 1,
+    "sack_fumbles_lost": 1,
+    "sack_yards_lost": -16,
+    "sacks_suffered": 3
+   },
+   "week": 5
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 38,
+    "carries": 3,
+    "completions": 24,
+    "fantasy_points": 16.76,
+    "fantasy_points_ppr": 16.76,
+    "fumbles_lost_total": 2,
+    "fumbles_total": 3,
+    "passing_tds": 2,
+    "passing_yards": 299,
+    "rushing_fumbles": 2,
+    "rushing_fumbles_lost": 1,
+    "rushing_yards": 8,
+    "sack_fumbles": 1,
+    "sack_fumbles_lost": 1,
+    "sack_yards_lost": -38,
+    "sacks_suffered": 4
+   },
+   "week": 4
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 38,
+    "carries": 2,
+    "completions": 21,
+    "fantasy_points": 6.34,
+    "fantasy_points_ppr": 6.34,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "passing_yards": 201,
+    "rushing_yards": 3,
+    "sack_fumbles": 1,
+    "sack_fumbles_lost": 1,
+    "sack_yards_lost": -62,
+    "sacks_suffered": 7
+   },
+   "week": 3
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 35,
+    "carries": 2,
+    "completions": 21,
+    "fantasy_points": 14.18,
+    "fantasy_points_ppr": 14.18,
+    "fumbles_lost_total": 2,
+    "fumbles_total": 2,
+    "passing_interceptions": 1,
+    "passing_tds": 1,
+    "passing_yards": 212,
+    "rushing_tds": 1,
+    "rushing_yards": 17,
+    "sack_fumbles": 2,
+    "sack_fumbles_lost": 2,
+    "sack_yards_lost": -56,
+    "sacks_suffered": 6
+   },
+   "week": 1
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 33,
+    "carries": 3,
+    "completions": 23,
+    "fantasy_points": 14.6,
+    "fantasy_points_ppr": 14.6,
+    "passing_interceptions": 1,
+    "passing_tds": 1,
+    "passing_yards": 305,
+    "rushing_yards": 4,
+    "sack_yards_lost": -23,
+    "sacks_suffered": 4
+   },
+   "week": 1
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 35,
+    "carries": 4,
+    "completions": 26,
+    "fantasy_points": 40.16,
+    "fantasy_points_ppr": 40.16,
+    "passing_2pt_conversions": 2,
+    "passing_tds": 5,
+    "passing_yards": 374,
+    "rushing_yards": 12,
+    "sack_yards_lost": -15,
+    "sacks_suffered": 3
+   },
+   "week": 3
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 34,
+    "carries": 6,
+    "completions": 23,
+    "fantasy_points": 22.84,
+    "fantasy_points_ppr": 22.84,
+    "passing_tds": 1,
+    "passing_yards": 316,
+    "rushing_tds": 1,
+    "rushing_yards": 2,
+    "sack_yards_lost": -10,
+    "sacks_suffered": 1
+   },
+   "week": 2
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 50,
+    "carries": 4,
+    "completions": 36,
+    "fantasy_points": 31.68,
+    "fantasy_points_ppr": 31.68,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "passing_2pt_conversions": 1,
+    "passing_tds": 3,
+    "passing_yards": 422,
+    "rushing_yards": 28,
+    "sack_fumbles": 1,
+    "sack_fumbles_lost": 1,
+    "sack_yards_lost": -30,
+    "sacks_suffered": 4
+   },
+   "week": 4
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 28,
+    "carries": 5,
+    "completions": 23,
+    "fantasy_points": 38.84,
+    "fantasy_points_ppr": 38.84,
+    "fumbles_total": 1,
+    "passing_tds": 6,
+    "passing_yards": 326,
+    "rushing_fumbles": 1,
+    "rushing_yards": 18,
+    "sack_yards_lost": -4,
+    "sacks_suffered": 1
+   },
+   "week": 2
+  },
+  {
+   "season": 2023,
+   "season_type": "POST",
+   "stats": {
+    "attempts": 46,
+    "carries": 3,
+    "completions": 34,
+    "fantasy_points": 13.58,
+    "fantasy_points_ppr": 13.58,
+    "passing_interceptions": 2,
+    "passing_tds": 1,
+    "passing_yards": 307,
+    "rushing_yards": 13,
+    "sack_yards_lost": -39,
+    "sacks_suffered": 4
+   },
+   "week": 19
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 20.5,
+    "fantasy_points_ppr": 31.5,
+    "receiving_tds": 1,
+    "receiving_yards": 145,
+    "receptions": 11,
+    "targets": 14
+   },
+   "week": 3
+  },
+  {
+   "season": 2018,
+   "season_type": "POST",
+   "stats": {
+    "carries": 1,
+    "fantasy_points": 14.9,
+    "fantasy_points_ppr": 24.9,
+    "receiving_yards": 141,
+    "receptions": 10,
+    "rushing_yards": 8,
+    "targets": 12
+   },
+   "week": 21
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 8.3,
+    "fantasy_points_ppr": 18.3,
+    "receiving_yards": 83,
+    "receptions": 10,
+    "targets": 14
+   },
+   "week": 2
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "carries": 2,
+    "fantasy_points": 11.6,
+    "fantasy_points_ppr": 21.6,
+    "receiving_yards": 91,
+    "receptions": 10,
+    "rushing_yards": 25,
+    "targets": 11
+   },
+   "week": 5
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 19.2,
+    "fantasy_points_ppr": 31.2,
+    "receiving_tds": 1,
+    "receiving_yards": 132,
+    "receptions": 12,
+    "targets": 18
+   },
+   "week": 3
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 12.3,
+    "fantasy_points_ppr": 22.3,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "receiving_fumbles": 1,
+    "receiving_fumbles_lost": 1,
+    "receiving_tds": 1,
+    "receiving_yards": 83,
+    "receptions": 10,
+    "targets": 12
+   },
+   "week": 2
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "carries": 33,
+    "fantasy_points": 23.7,
+    "fantasy_points_ppr": 25.7,
+    "receiving_yards": 20,
+    "receptions": 2,
+    "rushing_tds": 1,
+    "rushing_yards": 157,
+    "targets": 2
+   },
+   "week": 4
+  },
+  {
+   "season": 2024,
+   "season_type": "REG",
+   "stats": {
+    "carries": 24,
+    "fantasy_points": 22,
+    "fantasy_points_ppr": 24,
+    "receiving_yards": 37,
+    "receptions": 2,
+    "rushing_tds": 1,
+    "rushing_yards": 123,
+    "targets": 3
+   },
+   "week": 4
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "carries": 20,
+    "fantasy_points": 20.3,
+    "fantasy_points_ppr": 20.3,
+    "rushing_tds": 1,
+    "rushing_yards": 143,
+    "targets": 1
+   },
+   "week": 4
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "carries": 19,
+    "fantasy_points": 18.5,
+    "fantasy_points_ppr": 19.5,
+    "receiving_yards": 1,
+    "receptions": 1,
+    "rushing_tds": 1,
+    "rushing_yards": 124,
+    "targets": 2
+   },
+   "week": 4
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "carries": 22,
+    "fantasy_points": 14.8,
+    "fantasy_points_ppr": 16.8,
+    "receiving_yards": 17,
+    "receptions": 2,
+    "rushing_yards": 131,
+    "targets": 3
+   },
+   "week": 2
+  },
+  {
+   "season": 2024,
+   "season_type": "POST",
+   "stats": {
+    "carries": 26,
+    "fantasy_points": 35.2,
+    "fantasy_points_ppr": 39.2,
+    "receiving_yards": 27,
+    "receptions": 4,
+    "rushing_tds": 2,
+    "rushing_yards": 205,
+    "targets": 4
+   },
+   "week": 20
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": -0.0999999999999999,
+    "fantasy_points_ppr": 1.9,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "receiving_fumbles": 1,
+    "receiving_fumbles_lost": 1,
+    "receiving_yards": 19,
+    "receptions": 2,
+    "targets": 2
+   },
+   "week": 2
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": -0.1,
+    "fantasy_points_ppr": 0.9,
+    "receiving_yards": -1,
+    "receptions": 1,
+    "targets": 1
+   },
+   "week": 3
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": -0.7,
+    "fantasy_points_ppr": 0.3,
+    "receiving_yards": -7,
+    "receptions": 1,
+    "targets": 2
+   },
+   "week": 4
+  },
+  {
+   "season": 2018,
+   "season_type": "POST",
+   "stats": {
+    "fantasy_points": -1.2,
+    "fantasy_points_ppr": -0.2,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "receiving_fumbles": 1,
+    "receiving_fumbles_lost": 1,
+    "receiving_yards": 8,
+    "receptions": 1,
+    "targets": 1
+   },
+   "week": 18
+  },
+  {
+   "season": 2018,
+   "season_type": "POST",
+   "stats": {
+    "fantasy_points": -0.2,
+    "fantasy_points_ppr": 0.8,
+    "receiving_yards": -2,
+    "receptions": 1,
+    "targets": 1
+   },
+   "week": 19
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "carries": 1,
+    "fantasy_points": -0.4,
+    "fantasy_points_ppr": -0.4,
+    "rushing_yards": -4
+   },
+   "week": 4
+  },
+  {
+   "season": 2020,
+   "season_type": "POST",
+   "stats": {
+    "attempts": 36,
+    "carries": 1,
+    "completions": 20,
+    "fantasy_points": 17.1,
+    "fantasy_points_ppr": 17.1,
+    "passing_interceptions": 3,
+    "passing_tds": 3,
+    "passing_yards": 280,
+    "rushing_yards": -1,
+    "sack_yards_lost": -5,
+    "sacks_suffered": 1
+   },
+   "week": 20
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 27,
+    "carries": 3,
+    "completions": 23,
+    "fantasy_points": 22.74,
+    "fantasy_points_ppr": 22.74,
+    "fumbles_total": 1,
+    "passing_tds": 3,
+    "passing_yards": 256,
+    "rushing_fumbles": 1,
+    "rushing_yards": 5,
+    "sack_yards_lost": -16,
+    "sacks_suffered": 2
+   },
+   "week": 2
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 26,
+    "carries": 5,
+    "completions": 20,
+    "fantasy_points": 24.34,
+    "fantasy_points_ppr": 24.34,
+    "passing_tds": 3,
+    "passing_yards": 321,
+    "rushing_yards": -5,
+    "sack_yards_lost": -9,
+    "sacks_suffered": 1
+   },
+   "week": 1
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 45,
+    "carries": 5,
+    "completions": 32,
+    "fantasy_points": 27.6,
+    "fantasy_points_ppr": 27.6,
+    "passing_interceptions": 1,
+    "passing_tds": 3,
+    "passing_yards": 335,
+    "rushing_yards": 42,
+    "sack_yards_lost": -17,
+    "sacks_suffered": 2
+   },
+   "week": 2
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 42,
+    "carries": 1,
+    "completions": 25,
+    "fantasy_points": 29.02,
+    "fantasy_points_ppr": 29.02,
+    "passing_tds": 4,
+    "passing_yards": 283,
+    "rushing_yards": 17,
+    "sack_yards_lost": -8,
+    "sacks_suffered": 1
+   },
+   "week": 4
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 23.4,
+    "fantasy_points_ppr": 28.4,
+    "receiving_tds": 3,
+    "receiving_yards": 54,
+    "receptions": 5,
+    "targets": 5
+   },
+   "week": 2
+  },
+  {
+   "season": 2024,
+   "season_type": "POST",
+   "stats": {},
+   "week": 22
+  },
+  {
+   "season": 2023,
+   "season_type": "POST",
+   "stats": {
+    "targets": 1
+   },
+   "week": 19
+  },
+  {
+   "season": 2020,
+   "season_type": "POST",
+   "stats": {},
+   "week": 19
+  },
+  {
+   "season": 2024,
+   "season_type": "REG",
+   "stats": {},
+   "week": 1
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "targets": 1
+   },
+   "week": 3
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {},
+   "week": 4
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "carries": 1,
+    "fantasy_points": 13.3,
+    "fantasy_points_ppr": 18.3,
+    "receiving_yards": 38,
+    "receptions": 5,
+    "rushing_tds": 1,
+    "rushing_yards": 35,
+    "targets": 8
+   },
+   "week": 3
+  },
+  {
+   "season": 2025,
+   "season_type": "POST",
+   "stats": {
+    "fumbles_lost_total": 1,
+    "fumbles_total": 2
+   },
+   "week": 21
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 1.7,
+    "fantasy_points_ppr": 2.7,
+    "receiving_yards": 17,
+    "receptions": 1,
+    "targets": 3
+   },
+   "week": 1
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "carries": 2,
+    "fantasy_points": 0.1,
+    "fantasy_points_ppr": 0.1,
+    "rushing_yards": 1
+   },
+   "week": 4
+  },
+  {
+   "season": 2024,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 0.6,
+    "fantasy_points_ppr": 1.6,
+    "receiving_yards": 6,
+    "receptions": 1,
+    "targets": 1
+   },
+   "week": 2
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 12.8,
+    "fantasy_points_ppr": 18.8,
+    "receiving_yards": 128,
+    "receptions": 6,
+    "targets": 8
+   },
+   "week": 2
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {},
+   "week": 2
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 4.5,
+    "fantasy_points_ppr": 6.5,
+    "receiving_yards": 45,
+    "receptions": 2,
+    "targets": 5
+   },
+   "week": 1
+  },
+  {
+   "season": 2018,
+   "season_type": "POST",
+   "stats": {
+    "fantasy_points": 8.6,
+    "fantasy_points_ppr": 11.6,
+    "receiving_tds": 1,
+    "receiving_yards": 26,
+    "receptions": 3,
+    "targets": 6
+   },
+   "week": 18
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {},
+   "week": 1
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 19.5,
+    "fantasy_points_ppr": 29.5,
+    "receiving_tds": 1,
+    "receiving_yards": 135,
+    "receptions": 10,
+    "targets": 11
+   },
+   "week": 1
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 0.5,
+    "fantasy_points_ppr": 2.5,
+    "fumbles_total": 1,
+    "receiving_yards": 5,
+    "receptions": 2,
+    "targets": 3
+   },
+   "week": 3
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "carries": 3,
+    "fantasy_points": 7.6,
+    "fantasy_points_ppr": 10.6,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "receiving_yards": 68,
+    "receptions": 3,
+    "rushing_yards": 8,
+    "targets": 5
+   },
+   "week": 1
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 1.2,
+    "fantasy_points_ppr": 2.2,
+    "receiving_yards": 12,
+    "receptions": 1,
+    "targets": 1
+   },
+   "week": 1
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "carries": 7,
+    "fantasy_points": 2.9,
+    "fantasy_points_ppr": 4.9,
+    "receiving_yards": 17,
+    "receptions": 2,
+    "rushing_yards": 12,
+    "targets": 3
+   },
+   "week": 3
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "carries": 1,
+    "targets": 1
+   },
+   "week": 4
+  },
+  {
+   "season": 2020,
+   "season_type": "POST",
+   "stats": {
+    "carries": 6,
+    "fantasy_points": 8.3,
+    "fantasy_points_ppr": 9.3,
+    "receiving_yards": 8,
+    "receptions": 1,
+    "rushing_yards": 75,
+    "targets": 3
+   },
+   "week": 18
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 2.5,
+    "fantasy_points_ppr": 5.5,
+    "receiving_yards": 25,
+    "receptions": 3,
+    "targets": 3
+   },
+   "week": 5
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 17,
+    "fantasy_points_ppr": 25,
+    "receiving_tds": 1,
+    "receiving_yards": 110,
+    "receptions": 8,
+    "targets": 10
+   },
+   "week": 4
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 3,
+    "fantasy_points_ppr": 6,
+    "receiving_yards": 30,
+    "receptions": 3,
+    "targets": 4
+   },
+   "week": 5
+  },
+  {
+   "season": 2023,
+   "season_type": "POST",
+   "stats": {
+    "fantasy_points": 13.7,
+    "fantasy_points_ppr": 21.7,
+    "receiving_tds": 1,
+    "receiving_yards": 77,
+    "receptions": 8,
+    "targets": 14
+   },
+   "week": 20
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 22,
+    "fantasy_points_ppr": 38,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "receiving_fumbles": 1,
+    "receiving_fumbles_lost": 1,
+    "receiving_tds": 1,
+    "receiving_yards": 180,
+    "receptions": 16,
+    "targets": 17
+   },
+   "week": 1
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "carries": 1,
+    "fantasy_points": 1.1,
+    "fantasy_points_ppr": 3.1,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 1,
+    "receiving_fumbles": 1,
+    "receiving_fumbles_lost": 1,
+    "receiving_yards": 31,
+    "receptions": 2,
+    "targets": 3
+   },
+   "week": 3
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 0.6,
+    "fantasy_points_ppr": 1.6,
+    "receiving_yards": 6,
+    "receptions": 1,
+    "targets": 2
+   },
+   "week": 1
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 3.7,
+    "fantasy_points_ppr": 6.7,
+    "receiving_yards": 37,
+    "receptions": 3,
+    "targets": 3
+   },
+   "week": 2
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "carries": 3,
+    "fantasy_points": 5.1,
+    "fantasy_points_ppr": 6.1,
+    "receiving_yards": 37,
+    "receptions": 1,
+    "rushing_yards": 14,
+    "targets": 1
+   },
+   "week": 2
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "carries": 1,
+    "fantasy_points": 1.1,
+    "fantasy_points_ppr": 1.1,
+    "rushing_yards": 11
+   },
+   "week": 3
+  },
+  {
+   "season": 2024,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 8.9,
+    "fantasy_points_ppr": 15.9,
+    "receiving_yards": 89,
+    "receptions": 7,
+    "targets": 9
+   },
+   "week": 4
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {},
+   "week": 4
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 28,
+    "carries": 2,
+    "completions": 19,
+    "fantasy_points": 11.4,
+    "fantasy_points_ppr": 11.4,
+    "passing_interceptions": 1,
+    "passing_tds": 1,
+    "passing_yards": 210,
+    "rushing_yards": 10,
+    "sack_yards_lost": -20,
+    "sacks_suffered": 2
+   },
+   "week": 4
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "carries": 17,
+    "fantasy_points": 7.6,
+    "fantasy_points_ppr": 9.6,
+    "receiving_yards": 3,
+    "receptions": 2,
+    "rushing_yards": 73,
+    "targets": 3
+   },
+   "week": 3
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "carries": 1,
+    "fantasy_points": 0.4,
+    "fantasy_points_ppr": 0.4,
+    "rushing_yards": 4
+   },
+   "week": 1
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 3.6,
+    "fantasy_points_ppr": 8.6,
+    "receiving_yards": 36,
+    "receptions": 5,
+    "targets": 7
+   },
+   "week": 1
+  },
+  {
+   "season": 2023,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 2.9,
+    "fantasy_points_ppr": 7.9,
+    "receiving_yards": 29,
+    "receptions": 5,
+    "targets": 9
+   },
+   "week": 5
+  },
+  {
+   "season": 2021,
+   "season_type": "REG",
+   "stats": {
+    "carries": 9,
+    "fantasy_points": 17,
+    "fantasy_points_ppr": 25,
+    "receiving_yards": 56,
+    "receptions": 8,
+    "rushing_tds": 1,
+    "rushing_yards": 54,
+    "targets": 9
+   },
+   "week": 1
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 3.5,
+    "fantasy_points_ppr": 7.5,
+    "receiving_yards": 35,
+    "receptions": 4,
+    "targets": 5
+   },
+   "week": 3
+  },
+  {
+   "season": 2020,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 39,
+    "carries": 1,
+    "completions": 27,
+    "fantasy_points": 14.16,
+    "fantasy_points_ppr": 14.16,
+    "fumbles_lost_total": 1,
+    "fumbles_total": 2,
+    "passing_interceptions": 1,
+    "passing_tds": 2,
+    "passing_yards": 249,
+    "rushing_yards": 2,
+    "sack_fumbles": 2,
+    "sack_fumbles_lost": 1,
+    "sack_yards_lost": -1,
+    "sacks_suffered": 3
+   },
+   "week": 5
+  },
+  {
+   "season": 2018,
+   "season_type": "REG",
+   "stats": {
+    "attempts": 22,
+    "completions": 11,
+    "fantasy_points": 2.68,
+    "fantasy_points_ppr": 2.68,
+    "passing_interceptions": 1,
+    "passing_yards": 117
+   },
+   "week": 1
+  },
+  {
+   "season": 2025,
+   "season_type": "REG",
+   "stats": {
+    "fantasy_points": 8.8,
+    "fantasy_points_ppr": 11.8,
+    "receiving_tds": 1,
+    "receiving_yards": 28,
+    "receptions": 3,
+    "targets": 3
+   },
+   "week": 2
+  }
+ ]
+}

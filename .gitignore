@@ -1,0 +1,64 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+/playwright-report/
+/test-results/
+/docs/screenshots/
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# wayback rankings converter cache (raw HTML snapshots, re-downloadable)
+/scripts/.wayback-cache/
+/data/historical-rankings/
+
+# player-data sync cache (Sleeper, DynastyProcess, nflverse; re-downloadable)
+/scripts/.cache/
+
+.agents/
+.serena/
+skills-lock.json
+# Local production runbook — kept on disk, not tracked
+local.md
+
+# Private league data and draft-board artifacts
+/data/*.xlsx
+/data/draft-history*.csv
+/data/historical-snake/
+/data/draft-boards/

@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "fittedAt": "2026-08-08",
+    "years": [2020, 2021, 2022, 2023, 2024, 2025],
+    "seeds": 8,
+    "objective": 6.939,
+    "baselineObjective": 7.318,
+    "script": "scripts/fit-mock-draft-params.ts",
+    "note": "ceilMin/ceilMax sit on the constraint wall in every fold, so they are a decision, not a measurement: the ceiling may not drop below 1.0 (the owner's read on the top of the board outranks the history there) and may not be a point (a shared cap makes second-price return the same dollar every run). marketMeanScale IS fitted here and lands above 1 (folds 1.45-1.82): the mean shift enters via the market read, while the clearing price is a second price that sits below it, so a larger input shift is needed to move output prices by the measured amount. posBudgetSlack is the least stable of the three (folds 1.25-1.97 against an all-years fit of 1.48) - treat it as approximate. The per-manager profile layer is deliberately not fitted at all; it scores at chance on the leave-one-year-out backtest.",
+    "outOfSample": "Beat the shipped defaults in 6 nested folds of 6.",
+    "acceptedCost": "Elite tier stays about +$5.3 over the league's historical prices at ranks 1-6. That is the price of holding the ceiling at 1.0, chosen deliberately."
+  },
+  "params": {
+    "ceilMin": 1.0,
+    "ceilMax": 1.1,
+    "posBudgetSlack": 1.4814,
+    "marketMeanScale": 1.7647
+  }
+}
