@@ -9,6 +9,7 @@ Four classifications:
 - **Derived** — computed from other data in this table. Some derivations are stored (offline scripts), some are recomputed in the browser on every render.
 - **Entered** — created by users inside the app. This league is the source of truth; nothing external to sync.
 
+
 ---
 
 ## Live
