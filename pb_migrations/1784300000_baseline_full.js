@@ -600,8 +600,8 @@ migrate((app) => {
     },
     {
       "id": "pbc_2345463699",
-      "listRule": "auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id || (auction_id.type = \"official\" && auction_id.league.league_members_via_league.user ?= @request.auth.id)",
-      "viewRule": "auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id || (auction_id.type = \"official\" && auction_id.league.league_members_via_league.user ?= @request.auth.id)",
+      "listRule": "@request.auth.id != \"\" && (auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id || (auction_id.type = \"official\" && auction_id.league.league_members_via_league.user ?= @request.auth.id) || (auction_id.type = \"official\" && auction_id.external = true))",
+      "viewRule": "@request.auth.id != \"\" && (auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id || (auction_id.type = \"official\" && auction_id.league.league_members_via_league.user ?= @request.auth.id) || (auction_id.type = \"official\" && auction_id.external = true))",
       "createRule": "@request.auth.id != \"\" && auction_id.status = \"active\" && (auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id || (auction_id.type = \"official\" && fantasy_team_id.league = auction_id.league && fantasy_team_id.league_members_via_fantasy_team.user ?= @request.auth.id))",
       "updateRule": "auction_id.status = \"active\" && (auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id)",
       "deleteRule": "auction_id.status = \"active\" && (auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id)",
@@ -852,10 +852,10 @@ migrate((app) => {
     },
     {
       "id": "pbc_848867609",
-      "listRule": "user = @request.auth.id || league.commissioner = @request.auth.id || (type = \"official\" && league.league_members_via_league.user ?= @request.auth.id)",
-      "viewRule": "user = @request.auth.id || league.commissioner = @request.auth.id || (type = \"official\" && league.league_members_via_league.user ?= @request.auth.id)",
-      "createRule": "@request.auth.id != \"\" && user = @request.auth.id && (type != \"official\" || league.commissioner = @request.auth.id)",
-      "updateRule": "user = @request.auth.id || league.commissioner = @request.auth.id",
+      "listRule": "@request.auth.id != \"\" && (user = @request.auth.id || league.commissioner = @request.auth.id || (type = \"official\" && league.league_members_via_league.user ?= @request.auth.id) || (type = \"official\" && external = true))",
+      "viewRule": "@request.auth.id != \"\" && (user = @request.auth.id || league.commissioner = @request.auth.id || (type = \"official\" && league.league_members_via_league.user ?= @request.auth.id) || (type = \"official\" && external = true))",
+      "createRule": "@request.auth.id != \"\" && user = @request.auth.id && (type != \"official\" || league.commissioner = @request.auth.id) && @request.body.external != true",
+      "updateRule": "(user = @request.auth.id || league.commissioner = @request.auth.id) && @request.body.external != true",
       "deleteRule": "user = @request.auth.id || league.commissioner = @request.auth.id",
       "name": "auctions",
       "type": "base",
@@ -993,6 +993,15 @@ migrate((app) => {
           "required": false,
           "system": false,
           "type": "relation"
+        },
+        {
+          "hidden": false,
+          "id": "bool1276803278",
+          "name": "external",
+          "presentable": false,
+          "required": false,
+          "system": false,
+          "type": "bool"
         }
       ],
       "indexes": [

@@ -1,0 +1,155 @@
+{
+  "name": "2026 External League (12-team, $200, 7 paid slots)",
+  "year": 2026,
+  "source": "Draft board photo, hand-entered and verified against the $200-per-team budget constraint. 10 of 12 teams total exactly $200; cols 5 and 7 came in $8 and $5 under, confirmed as genuinely unspent rather than transcription error.",
+  "budget": 200,
+  "paidSlots": 7,
+  "teams": [
+    {
+      "column": 1,
+      "label": "Siegel",
+      "picks": [
+        ["CeeDee Lamb", 65],
+        ["Drake London", 58],
+        ["Malik Nabers", 40],
+        ["Colston Loveland", 10],
+        ["D'Andre Swift", 10],
+        ["Luther Burden III", 7],
+        ["Chuba Hubbard", 10]
+      ]
+    },
+    {
+      "column": 2,
+      "label": "Felix",
+      "picks": [
+        ["Ja'Marr Chase", 80],
+        ["Nico Collins", 38],
+        ["Joe Burrow", 20],
+        ["Breece Hall", 23],
+        ["Quinshon Judkins", 25],
+        ["DJ Moore", 13],
+        ["Matthew Golden", 1]
+      ]
+    },
+    {
+      "column": 3,
+      "picks": [
+        ["Kenneth Walker III", 40],
+        ["Chris Olave", 45],
+        ["George Pickens", 54],
+        ["Kyren Williams", 25],
+        ["Travis Etienne Jr.", 27],
+        ["Jaxson Dart", 2],
+        ["Jadarian Price", 7]
+      ]
+    },
+    {
+      "column": 4,
+      "picks": [
+        ["Josh Allen", 41],
+        ["Jahmyr Gibbs", 85],
+        ["Brock Bowers", 45],
+        ["Terry McLaurin", 17],
+        ["Alec Pierce", 2],
+        ["Jordyn Tyson", 2],
+        ["Parker Washington", 8]
+      ]
+    },
+    {
+      "column": 5,
+      "picks": [
+        ["Jeremiyah Love", 41],
+        ["Christian McCaffrey", 84],
+        ["Jaylen Waddle", 22],
+        ["Jayden Daniels", 11],
+        ["Emeka Egbuka", 27],
+        ["Sam LaPorta", 6],
+        ["Michael Pittman Jr.", 1]
+      ]
+    },
+    {
+      "column": 6,
+      "picks": [
+        ["James Cook", 69],
+        ["Derrick Henry", 46],
+        ["Tetairoa McMillan", 29],
+        ["DeVonta Smith", 24],
+        ["Ladd McConkey", 27],
+        ["Harold Fannin Jr.", 2],
+        ["Tony Pollard", 3]
+      ]
+    },
+    {
+      "column": 7,
+      "picks": [
+        ["Jonathan Taylor", 66],
+        ["De'Von Achane", 54],
+        ["Zay Flowers", 19],
+        ["Davante Adams", 22],
+        ["Drake Maye", 6],
+        ["Jameson Williams", 12],
+        ["Tyler Warren", 16]
+      ]
+    },
+    {
+      "column": 8,
+      "picks": [
+        ["Puka Nacua", 72],
+        ["A.J. Brown", 49],
+        ["Javonte Williams", 35],
+        ["Bucky Irving", 21],
+        ["Carnell Tate", 13],
+        ["Mike Evans", 4],
+        ["Tucker Kraft", 6]
+      ]
+    },
+    {
+      "column": 9,
+      "picks": [
+        ["Ashton Jeanty", 58],
+        ["Bijan Robinson", 86],
+        ["Lamar Jackson", 19],
+        ["Tee Higgins", 33],
+        ["Brian Thomas Jr.", 1],
+        ["Christian Watson", 1],
+        ["Marvin Harrison Jr.", 2]
+      ]
+    },
+    {
+      "column": 10,
+      "picks": [
+        ["Omarion Hampton", 40],
+        ["Rashee Rice", 42],
+        ["Justin Jefferson", 63],
+        ["Cam Skattebo", 33],
+        ["Rome Odunze", 15],
+        ["Caleb Williams", 6],
+        ["Kyle Pitts Sr.", 1]
+      ]
+    },
+    {
+      "column": 11,
+      "picks": [
+        ["Jaxon Smith-Njigba", 70],
+        ["Saquon Barkley", 51],
+        ["Chase Brown", 57],
+        ["Jalen Hurts", 6],
+        ["George Kittle", 1],
+        ["David Montgomery", 10],
+        ["Michael Wilson", 5]
+      ]
+    },
+    {
+      "column": 12,
+      "picks": [
+        ["Trey McBride", 46],
+        ["Amon-Ra St. Brown", 69],
+        ["Garrett Wilson", 29],
+        ["Josh Jacobs", 36],
+        ["TreVeyon Henderson", 7],
+        ["Bhayshul Tuten", 10],
+        ["Rhamondre Stevenson", 3]
+      ]
+    }
+  ]
+}

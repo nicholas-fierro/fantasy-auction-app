@@ -176,6 +176,7 @@ export function mapAuctionRecord(record: RecordModel): Auction {
     status: record.status,
     user: record.user,
     league: record.league || null,
+    external: record.external === true,
     drafted_at: record.drafted_at || record.created,
     created: record.created,
     updated: record.updated,

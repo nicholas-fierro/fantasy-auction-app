@@ -41,7 +41,11 @@ export function AuctionProvider({ children }: { children: ReactNode }) {
       const records = await pb.collection('auctions').getFullList({
         sort: '-drafted_at,-created',
       });
-      return records.map(mapAuctionRecord);
+      // Outside-league boards are readable so the value model can price off
+      // them (migration 1784380000), but they are not this league's drafts:
+      // they must never appear in the auction picker, be selectable, or be
+      // mistaken for an official draft anyone can enter.
+      return records.filter((record) => record.external !== true).map(mapAuctionRecord);
     },
   });
 
