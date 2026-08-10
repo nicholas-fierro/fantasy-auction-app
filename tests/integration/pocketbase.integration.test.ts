@@ -108,11 +108,13 @@ const expectedRules: Record<string, Partial<Record<'listRule' | 'viewRule' | 'cr
     createRule: null,
   },
   auctions: {
-    listRule: 'user = @request.auth.id || league.commissioner = @request.auth.id || (type = "official" && league.league_members_via_league.user ?= @request.auth.id)',
-    createRule: '@request.auth.id != "" && user = @request.auth.id && (type != "official" || league.commissioner = @request.auth.id)',
+    listRule: '@request.auth.id != "" && (user = @request.auth.id || league.commissioner = @request.auth.id || (type = "official" && league.league_members_via_league.user ?= @request.auth.id) || (type = "official" && external = true))',
+    createRule: '@request.auth.id != "" && user = @request.auth.id && (type != "official" || league.commissioner = @request.auth.id) && @request.body.external != true',
+    // Only a superuser may set `external` — it gates a shared read clause.
+    updateRule: '(user = @request.auth.id || league.commissioner = @request.auth.id) && @request.body.external != true',
   },
   draft_picks: {
-    listRule: 'auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id || (auction_id.type = "official" && auction_id.league.league_members_via_league.user ?= @request.auth.id)',
+    listRule: '@request.auth.id != "" && (auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id || (auction_id.type = "official" && auction_id.league.league_members_via_league.user ?= @request.auth.id) || (auction_id.type = "official" && auction_id.external = true))',
     createRule: '@request.auth.id != "" && auction_id.status = "active" && (auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id || (auction_id.type = "official" && fantasy_team_id.league = auction_id.league && fantasy_team_id.league_members_via_fantasy_team.user ?= @request.auth.id))',
   },
   auction_teams: {
@@ -525,6 +527,52 @@ describe('authorization rules (AD-2 and AD-18)', () => {
     await expectApiFailure(clientB.collection('watchlist').getOne(watch.id), [404]);
     await expectApiFailure(clientB.collection('watchlist').create({ user: userA.id, player_id: players[5].id }), [400, 403]);
     expect((await clientB.collection('watchlist').create({ user: userB.id, player_id: players[5].id })).user).toBe(userB.id);
+  });
+
+  it('shares external boards with members only, and never lets a client mark one', async () => {
+    const { clientA, clientB, clientC, players, league, userA } = fixture;
+
+    // Only a superuser can create an external board — the importer's job.
+    const board = await admin.collection('auctions').create({
+      name: 'Outside League 2026', year: 2026, status: 'completed', type: 'official', external: true,
+    });
+    const boardPick = await admin.collection('draft_picks').create({
+      auction_id: board.id, player_id: players[6].id, price: 55, pick_order: 1,
+    });
+
+    // Every authenticated user reads it — that is what keeps the CLI and the
+    // in-app recalculation pricing off identical history.
+    for (const client of [clientA, clientB, clientC]) {
+      expect((await client.collection('auctions').getOne(board.id)).id).toBe(board.id);
+      expect((await client.collection('draft_picks').getOne(boardPick.id)).id).toBe(boardPick.id);
+    }
+
+    // A guest reads nothing. The read clause carries no auth comparison of its
+    // own, so without the wrapping `@request.auth.id != ""` this board and all
+    // of its picks would be world-readable — as would any league-less auction,
+    // whose `league.commissioner` resolves null and compares equal to "".
+    const guest = new PocketBase(integrationUrl);
+    await expectApiFailure(guest.collection('auctions').getOne(board.id), [404]);
+    await expectApiFailure(guest.collection('draft_picks').getOne(boardPick.id), [404]);
+    expect(await guest.collection('auctions').getFullList()).toHaveLength(0);
+
+    // A member cannot mint one, nor promote an auction they already own —
+    // either would publish that auction and its picks to the whole instance.
+    await expectApiFailure(clientA.collection('auctions').create({
+      name: 'Self-published', year: 2026, status: 'completed', type: 'official',
+      user: userA.id, league: league.id, external: true,
+    }), [400, 403]);
+
+    const owned = await clientA.collection('auctions').create({
+      name: 'Ordinary Mock', year: 2026, status: 'completed', type: 'mock',
+      user: userA.id, league: league.id,
+    });
+    await expectApiFailure(clientA.collection('auctions').update(owned.id, { external: true }), [400, 403, 404]);
+    // …while an ordinary update to the same record still succeeds.
+    expect((await clientA.collection('auctions').update(owned.id, { name: 'Renamed' })).name).toBe('Renamed');
+
+    await admin.collection('auctions').delete(owned.id);
+    await admin.collection('auctions').delete(board.id);
   });
 
   it('rejects a second active auction of the same type for one owner', async () => {

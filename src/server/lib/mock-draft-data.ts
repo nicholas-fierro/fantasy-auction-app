@@ -107,11 +107,11 @@ export async function loadLeagueDraftData(
   const historyRows: HistoricalValue[] = [];
   const actual: ActualPick[] = [];
 
-  // Imported outside-league boards (scripts/import-external-auction.ts) are
-  // official auctions owned by nobody. Their prices are comp material, but they
-  // are not this league's draft history: the teams are strangers, so they can
-  // neither calibrate manager profiles nor mark one of our years as drafted.
-  const isExternal = (auction: RecordModel) => !auction.user && !auction.league;
+  // Imported outside-league boards (scripts/import-external-auction.ts) carry an
+  // explicit `external` flag. Their prices are comp material, but they are not
+  // this league's draft history: the teams are strangers, so they can neither
+  // calibrate manager profiles nor mark one of our years as drafted.
+  const isExternal = (auction: RecordModel) => auction.external === true;
   const leagueAuctions = auctions.filter((a) => !isExternal(a));
 
   const years = [...new Set(leagueAuctions.map((a) => a.year as number))].sort((a, b) => a - b);
@@ -196,7 +196,11 @@ export async function loadLeagueDraftData(
         });
       }
 
-      // Mirrors history-client.ts: priced picks become 'official' comp rows.
+      // Mirrors history-client.ts: priced picks become comp rows, tagged with
+      // the board they came from. Once an external year is historical (a 2027
+      // run over the imported 2026 board) an untagged row would be weighted as
+      // our own league's, so the calibration scripts would model a different
+      // price history than the production estimator.
       if (season && price > 0) {
         historyRows.push({
           year,
@@ -206,7 +210,8 @@ export async function loadLeagueDraftData(
           rank,
           position_rank: (season.position_rank as number) ?? 0,
           price,
-          source: 'official',
+          source: external ? 'external' : 'official',
+          external,
         });
         drafted.add(playerId);
       }
@@ -230,7 +235,10 @@ export async function loadLeagueDraftData(
           rank: (season.rank as number) ?? 0,
           position_rank: positionRank,
           price: 0,
-          source: 'undrafted',
+          // "Nobody bid on him" is a claim made by a particular board, so it
+          // inherits that board's provenance and weight.
+          source: external ? 'external' : 'undrafted',
+          external,
         });
       }
     }

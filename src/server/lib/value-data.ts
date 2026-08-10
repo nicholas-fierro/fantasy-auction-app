@@ -211,38 +211,28 @@ export function buildHistory(data: ValueData, beforeYear: number): HistoryRow[] 
   const seasonByPlayer = seasonIndex(data);
   const rows: HistoryRow[] = [];
 
-  const years = [
-    ...new Set(
-      data.auctions
-        .filter(
-          (a) =>
-            a.type === 'official' &&
-            a.year > 0 &&
-            // Prior years always. The draft year itself only from a finished
-            // outside-league board: our own auction for that year has not
-            // happened, and a part-drafted one would teach a truncated market.
-            (a.year < beforeYear ||
-              (a.year === beforeYear && a.external && a.status === 'completed'))
-        )
-        .map((a) => a.year)
-    ),
-  ];
+  // Each eligible auction is its own observation of a market, so rows are built
+  // PER BOARD rather than pooled by year. Pooling was wrong in two ways when a
+  // year holds more than one board: a player bought in either one suppressed the
+  // $0 "went undrafted" row for both, and during our own live draft the picks
+  // already entered suppressed the external board's $0 rows — silently shifting
+  // estimates as the draft progressed, even though collectComps rejects those
+  // same-year league picks as comps.
+  const eligible = data.auctions.filter(
+    (a) =>
+      a.type === 'official' &&
+      a.year > 0 &&
+      // Prior years always. The draft year itself only from a finished
+      // outside-league board: our own auction for that year has not
+      // happened, and a part-drafted one would teach a truncated market.
+      (a.year < beforeYear || (a.year === beforeYear && a.external && a.status === 'completed'))
+  );
 
-  for (const year of years) {
-    const yearAuctions = data.auctions.filter((a) => a.type === 'official' && a.year === year);
-    const auctionIds = new Set(yearAuctions.map((a) => a.id));
-    const externalIds = new Set(yearAuctions.filter((a) => a.external).map((a) => a.id));
-    const completed = yearAuctions.filter((a) => a.status === 'completed');
-    const hasCompleted = completed.length > 0;
-    // If the only completed board for this year is someone else's, the "went
-    // undrafted" claim is theirs too, and its rows are weighted as such.
-    const undraftedIsExternal = completed.length > 0 && completed.every((a) => a.external);
-
-    // Priced rows (unchanged construction): each official priced pick joined to
-    // its year's rankings.
+  for (const auction of eligible) {
+    const year = auction.year;
     const pricedPlayerIds = new Set<string>();
     for (const pick of data.picks) {
-      if (!auctionIds.has(pick.auction_id) || !(pick.price > 0)) continue;
+      if (pick.auction_id !== auction.id || !(pick.price > 0)) continue;
       pricedPlayerIds.add(pick.player_id);
       const season = seasonByPlayer.get(`${pick.player_id}:${year}`);
       rows.push({
@@ -251,12 +241,14 @@ export function buildHistory(data: ValueData, beforeYear: number): HistoryRow[] 
         position_rank: Number(season?.position_rank ?? 0),
         rank: Number(season?.rank ?? 0),
         price: pick.price,
-        external: externalIds.has(pick.auction_id),
+        external: auction.external,
       });
     }
 
-    // Synthesized $0 rows for ranked QB/RB/WR/TE who were not priced this year.
-    if (!hasCompleted) continue;
+    // Synthesized $0 rows for ranked QB/RB/WR/TE this board did not price. The
+    // claim "nobody bid on him" belongs to the board making it, so the rows
+    // inherit that board's provenance.
+    if (auction.status !== 'completed') continue;
     for (const season of data.seasons) {
       if (season.year !== year || season.position_rank <= 0) continue;
       if (pricedPlayerIds.has(season.player_id)) continue;
@@ -268,7 +260,7 @@ export function buildHistory(data: ValueData, beforeYear: number): HistoryRow[] 
         position_rank: season.position_rank,
         rank: season.rank,
         price: 0,
-        external: undraftedIsExternal,
+        external: auction.external,
       });
     }
   }

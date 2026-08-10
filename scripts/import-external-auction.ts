@@ -252,11 +252,17 @@ async function main(): Promise<void> {
   // because there is no owner — but the flag, not the absent relations, is what
   // declares intent. `completed` is required for the model to synthesize $0
   // rows for ranked-but-undrafted players from this board.
+  // Created ACTIVE, not completed. A completed board is taken at its word: every
+  // ranked player it does not price becomes a $0 "nobody bid on him" observation.
+  // So a half-written board is worse than no board — it would silently teach the
+  // model that dozens of drafted players went for nothing. The auction is only
+  // promoted to `completed` once every pick is in, and is deleted if any fails
+  // (which matters most under --replace, where the previous good board is gone).
   const auction = await pb.collection('auctions').create(
     {
       name: file.name,
       year: file.year,
-      status: 'completed',
+      status: 'active',
       type: 'official',
       external: true,
       sim: false,
@@ -264,28 +270,49 @@ async function main(): Promise<void> {
     },
     { requestKey: null }
   );
-  console.log(`\ncreated auction ${auction.id} (no user, no league — invisible to clients)`);
+  console.log(`\ncreated auction ${auction.id} (external — readable, never listed in the app)`);
 
-  // pick_order is supplied explicitly: the draft_picks hook respects
-  // superuser-provided values, and every pick here is priced, so the hook's
-  // snake-turn enforcement does not apply.
-  for (let i = 0; i < picks.length; i += WRITE_BATCH_SIZE) {
-    await Promise.all(
-      picks.slice(i, i + WRITE_BATCH_SIZE).map((pick) =>
-        pb.collection('draft_picks').create(
-          {
-            auction_id: auction.id,
-            player_id: pick.playerId,
-            price: pick.price,
-            pick_order: pick.pickOrder,
-            drafted_at: `${file.year}-08-01 00:00:00.000Z`,
-          },
-          { requestKey: null }
+  try {
+    // pick_order is supplied explicitly: the draft_picks hook respects
+    // superuser-provided values, and every pick here is priced, so the hook's
+    // snake-turn enforcement does not apply.
+    for (let i = 0; i < picks.length; i += WRITE_BATCH_SIZE) {
+      await Promise.all(
+        picks.slice(i, i + WRITE_BATCH_SIZE).map((pick) =>
+          pb.collection('draft_picks').create(
+            {
+              auction_id: auction.id,
+              player_id: pick.playerId,
+              price: pick.price,
+              pick_order: pick.pickOrder,
+              drafted_at: `${file.year}-08-01 00:00:00.000Z`,
+            },
+            { requestKey: null }
+          )
         )
-      )
+      );
+    }
+
+    // Verify before publishing rather than trusting the writes: the count is the
+    // one cheap check that the board the model will read is the board on paper.
+    const written = await pb.collection('draft_picks').getFullList({
+      filter: pb.filter('auction_id = {:id}', { id: auction.id }),
+      requestKey: null,
+    });
+    if (written.length !== picks.length) {
+      throw new Error(`wrote ${written.length} picks, expected ${picks.length}`);
+    }
+
+    await pb.collection('auctions').update(auction.id, { status: 'completed' }, { requestKey: null });
+  } catch (error) {
+    // Deleting the auction cascades to whatever picks did land.
+    await pb.collection('auctions').delete(auction.id, { requestKey: null }).catch(() => {});
+    throw new Error(
+      `Import failed and was rolled back (auction ${auction.id} deleted): ` +
+        (error instanceof Error ? error.message : String(error))
     );
   }
-  console.log(`wrote ${picks.length} priced picks`);
+  console.log(`wrote ${picks.length} priced picks, auction marked completed`);
   console.log(
     `\nThis board now informs projected values from ${file.year} onward, discounted by ` +
       `the model's externalWeight. Rerun calc-projected-values.ts to apply it; pass ` +
