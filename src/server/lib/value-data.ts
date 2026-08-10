@@ -31,6 +31,7 @@ interface RawAuction {
   year: number;
   status: string;
   type: string;
+  external: boolean;
 }
 interface RawPick {
   auction_id: string;
@@ -94,6 +95,7 @@ export async function loadFromPocketBase(pb: PocketBase): Promise<ValueData> {
     year: Number(a.year),
     status: String(a.status ?? ''),
     type: String(a.type ?? ''),
+    external: a.external === true,
   }));
 
   const picks: RawPick[] = [];
@@ -144,6 +146,7 @@ export function loadFromDump(path: string): ValueData {
       year: Number(a.year),
       status: String(a.status ?? ''),
       type: String(a.type ?? ''),
+      external: a.external === true,
     })),
     picks: raw.picks.map((p) => ({
       auction_id: p.auction_id,
@@ -170,9 +173,13 @@ function seasonIndex(data: ValueData): Map<string, RawSeason> {
 }
 
 // Official priced picks of a single year, joined to that year's rankings.
+// External boards are excluded: this is the backtest's answer key, and scoring
+// our model against another league's prices would be measuring the wrong room.
 export function buildPricedPicks(data: ValueData, year: number): PricedPick[] {
   const auctionIds = new Set(
-    data.auctions.filter((a) => a.type === 'official' && a.year === year).map((a) => a.id)
+    data.auctions
+      .filter((a) => a.type === 'official' && a.year === year && !a.external)
+      .map((a) => a.id)
   );
   const seasonByPlayer = seasonIndex(data);
   const picks: PricedPick[] = [];
@@ -193,6 +200,13 @@ export function buildPricedPicks(data: ValueData, year: number): PricedPick[] {
 // History for estimating draft year `beforeYear`: every official priced pick
 // from earlier years, plus a synthesized $0 row for each ranked-but-undrafted
 // QB/RB/WR/TE (see the synthesis rule at the top of this file).
+//
+// Rows from an outside league's imported board are marked `external`, and a
+// completed external board for `beforeYear` ITSELF is included — it is the only
+// same-year market evidence that can exist, since our own auction for the year
+// being priced has not happened. Those rows are discounted by
+// `ValueModelConfig.externalWeight` in collectComps, not here: this builder
+// states where a row came from, the model decides what it is worth.
 export function buildHistory(data: ValueData, beforeYear: number): HistoryRow[] {
   const seasonByPlayer = seasonIndex(data);
   const rows: HistoryRow[] = [];
@@ -200,16 +214,29 @@ export function buildHistory(data: ValueData, beforeYear: number): HistoryRow[] 
   const years = [
     ...new Set(
       data.auctions
-        .filter((a) => a.type === 'official' && a.year > 0 && a.year < beforeYear)
+        .filter(
+          (a) =>
+            a.type === 'official' &&
+            a.year > 0 &&
+            // Prior years always. The draft year itself only from a finished
+            // outside-league board: our own auction for that year has not
+            // happened, and a part-drafted one would teach a truncated market.
+            (a.year < beforeYear ||
+              (a.year === beforeYear && a.external && a.status === 'completed'))
+        )
         .map((a) => a.year)
     ),
   ];
 
   for (const year of years) {
-    const auctionIds = new Set(data.auctions.filter((a) => a.type === 'official' && a.year === year).map((a) => a.id));
-    const hasCompleted = data.auctions.some(
-      (a) => a.type === 'official' && a.year === year && a.status === 'completed'
-    );
+    const yearAuctions = data.auctions.filter((a) => a.type === 'official' && a.year === year);
+    const auctionIds = new Set(yearAuctions.map((a) => a.id));
+    const externalIds = new Set(yearAuctions.filter((a) => a.external).map((a) => a.id));
+    const completed = yearAuctions.filter((a) => a.status === 'completed');
+    const hasCompleted = completed.length > 0;
+    // If the only completed board for this year is someone else's, the "went
+    // undrafted" claim is theirs too, and its rows are weighted as such.
+    const undraftedIsExternal = completed.length > 0 && completed.every((a) => a.external);
 
     // Priced rows (unchanged construction): each official priced pick joined to
     // its year's rankings.
@@ -224,6 +251,7 @@ export function buildHistory(data: ValueData, beforeYear: number): HistoryRow[] 
         position_rank: Number(season?.position_rank ?? 0),
         rank: Number(season?.rank ?? 0),
         price: pick.price,
+        external: externalIds.has(pick.auction_id),
       });
     }
 
@@ -240,6 +268,7 @@ export function buildHistory(data: ValueData, beforeYear: number): HistoryRow[] 
         position_rank: season.position_rank,
         rank: season.rank,
         price: 0,
+        external: undraftedIsExternal,
       });
     }
   }

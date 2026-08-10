@@ -53,14 +53,22 @@ async function buildSeasonMap(year: number): Promise<Map<string, RecordModel>> {
 const SYNTHESIZABLE_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE']);
 
 export async function computeHistoricalValues(): Promise<HistoricalValue[]> {
-  // 1. The user's official auctions that carry a year (auth-scoped by API rule).
+  // 1. Official auctions that carry a year (auth-scoped by API rule).
   const officialAuctions = await pb.collection('auctions').getFullList({
     filter: pb.filter('type = "official" && year > 0'),
     requestKey: null,
   });
 
+  // Outside-league boards are readable (migration 1784380000) but are NOT
+  // candidates for "this league's auction for year N" — they must never
+  // displace our own draft in the one-per-year collapse, and unlike ours they
+  // may describe the year currently being drafted. They are appended as their
+  // own discounted rows below.
+  const leagueAuctions = officialAuctions.filter((a) => a.external !== true);
+  const externalAuctions = officialAuctions.filter((a) => a.external === true);
+
   // Deterministically collapse duplicate official auctions per year.
-  const chosenByYear = chosenAuctionsByYear(officialAuctions);
+  const chosenByYear = chosenAuctionsByYear(leagueAuctions);
 
   const rows: HistoricalValue[] = [];
 
@@ -150,6 +158,70 @@ export async function computeHistoricalValues(): Promise<HistoricalValue[]> {
       source: 'imported',
     });
   }
+
+  // 4. Outside-league boards: the same priced + undrafted construction as step
+  //    2, tagged `external` so collectComps discounts them by externalWeight.
+  //    Unlike our own auctions these may cover the year being drafted, which is
+  //    the point — it is the only same-year market evidence that exists.
+  const externalPerYear = await Promise.all(
+    externalAuctions.map(async (auction) => {
+      const year = auction.year as number;
+      const [picks, seasonMap] = await Promise.all([
+        pb.collection('draft_picks').getFullList({
+          filter: pb.filter('auction_id = {:auctionId} && price > 0', { auctionId: auction.id }),
+          expand: 'player_id',
+          requestKey: null,
+        }),
+        buildSeasonMap(year),
+      ]);
+
+      const yearRows: HistoricalValue[] = [];
+      const draftedPlayerIds = new Set<string>();
+      for (const pick of picks) {
+        const season = seasonMap.get(pick.player_id as string);
+        if (!season) continue;
+        const player = pick.expand?.player_id;
+        yearRows.push({
+          year,
+          player_id: pick.player_id,
+          name: player?.name ?? '',
+          position: player?.position ?? '',
+          rank: season.rank ?? 0,
+          position_rank: season.position_rank ?? 0,
+          price: pick.price,
+          source: 'external',
+          external: true,
+        });
+        draftedPlayerIds.add(pick.player_id as string);
+      }
+
+      if (auction.status === 'completed') {
+        for (const season of seasonMap.values()) {
+          const playerId = season.player_id as string;
+          if (draftedPlayerIds.has(playerId)) continue;
+          const positionRank = season.position_rank ?? 0;
+          if (positionRank <= 0) continue;
+          const player = season.expand?.player_id;
+          const position = player?.position ?? '';
+          if (!SYNTHESIZABLE_POSITIONS.has(position)) continue;
+          yearRows.push({
+            year,
+            player_id: playerId,
+            name: player?.name ?? '',
+            position,
+            rank: season.rank ?? 0,
+            position_rank: positionRank,
+            price: 0,
+            source: 'external',
+            external: true,
+          });
+        }
+      }
+
+      return yearRows;
+    })
+  );
+  for (const yearRows of externalPerYear) rows.push(...yearRows);
 
   return rows;
 }

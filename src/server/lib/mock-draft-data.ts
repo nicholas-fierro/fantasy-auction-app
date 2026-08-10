@@ -107,13 +107,23 @@ export async function loadLeagueDraftData(
   const historyRows: HistoricalValue[] = [];
   const actual: ActualPick[] = [];
 
-  const years = [...new Set(auctions.map((a) => a.year as number))].sort((a, b) => a - b);
+  // Imported outside-league boards (scripts/import-external-auction.ts) are
+  // official auctions owned by nobody. Their prices are comp material, but they
+  // are not this league's draft history: the teams are strangers, so they can
+  // neither calibrate manager profiles nor mark one of our years as drafted.
+  const isExternal = (auction: RecordModel) => !auction.user && !auction.league;
+  const leagueAuctions = auctions.filter((a) => !isExternal(a));
+
+  const years = [...new Set(leagueAuctions.map((a) => a.year as number))].sort((a, b) => a - b);
   // A year counts as finished only when every official auction it has is
   // completed, so a year with a draft still in progress can never look done.
+  // External boards are excluded above — an imported 2026 auction must not make
+  // our own undrafted 2026 look complete.
   const completedYears = years.filter((year) =>
-    auctions.filter((a) => a.year === year).every((a) => a.status === 'completed')
+    leagueAuctions.filter((a) => a.year === year).every((a) => a.status === 'completed')
   );
-  const allYears = [...new Set([...years, ...extraYears])];
+  const externalYears = auctions.filter(isExternal).map((a) => a.year as number);
+  const allYears = [...new Set([...years, ...externalYears, ...extraYears])];
 
   for (const year of allYears) {
     const seasons = await pb.collection('player_seasons').getFullList({
@@ -133,6 +143,7 @@ export async function loadLeagueDraftData(
 
   for (const auction of auctions) {
     const year = auction.year as number;
+    const external = isExternal(auction);
     const seasonMap = seasonsByYear.get(year) ?? new Map<string, RecordModel>();
     const picks = await pb.collection('draft_picks').getFullList({
       filter: `auction_id = "${auction.id}"`,
@@ -150,34 +161,40 @@ export async function loadLeagueDraftData(
       const price = (pick.price as number) ?? 0;
       const rank = (season?.rank as number) ?? 0;
 
-      profileRows.push({
-        playerId,
-        positionRank: (season?.position_rank as number) ?? 0,
-        pick: {
-          teamId,
-          year,
-          position: player.position,
-          price,
-          estimate: 0, // filled by buildProfilesBefore
-          pickOrder: (pick.pick_order as number) ?? 0,
-          rank,
-          nflTeam: (season?.team as string) ?? '',
-          isRookie: season?.is_rookie === true,
-          // A `false` rookie flag is only trustworthy when an earlier season row
-          // proves the player already existed. Resolved after the whole load.
-          rookieDataKnown: false,
-        },
-      });
+      // An external board's picks carry no fantasy_team_id — there is no
+      // manager here whose tendencies could be learned, and a blank teamId
+      // would silently pool 84 strangers' picks into one phantom profile. Skip
+      // the behavioral rows; the price comps below still apply.
+      if (!external) {
+        profileRows.push({
+          playerId,
+          positionRank: (season?.position_rank as number) ?? 0,
+          pick: {
+            teamId,
+            year,
+            position: player.position,
+            price,
+            estimate: 0, // filled by buildProfilesBefore
+            pickOrder: (pick.pick_order as number) ?? 0,
+            rank,
+            nflTeam: (season?.team as string) ?? '',
+            isRookie: season?.is_rookie === true,
+            // A `false` rookie flag is only trustworthy when an earlier season row
+            // proves the player already existed. Resolved after the whole load.
+            rookieDataKnown: false,
+          },
+        });
 
-      actual.push({
-        year,
-        teamId,
-        playerId,
-        price,
-        pickOrder: (pick.pick_order as number) ?? 0,
-        position: player.position,
-        rank,
-      });
+        actual.push({
+          year,
+          teamId,
+          playerId,
+          price,
+          pickOrder: (pick.pick_order as number) ?? 0,
+          position: player.position,
+          rank,
+        });
+      }
 
       // Mirrors history-client.ts: priced picks become 'official' comp rows.
       if (season && price > 0) {

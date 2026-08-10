@@ -9,6 +9,10 @@ export interface Auction {
   user: string;
   // The league this auction belongs to (empty for pre-league legacy rows).
   league: string | null;
+  // An outside league's imported board (scripts/import-external-auction.ts).
+  // Readable so the value model can use it as comp data, but never part of this
+  // league's draft list — auction-context filters these out of the UI.
+  external: boolean;
   drafted_at: string;
   created: string;
   updated: string;

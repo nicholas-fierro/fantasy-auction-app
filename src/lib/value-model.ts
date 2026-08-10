@@ -17,6 +17,10 @@ export interface HistoryRow {
   position_rank: number; // that year's FantasyPros position rank (>0)
   rank: number; // that year's overall rank (0 = unknown)
   price: number; // dollars paid, or 0 = went undrafted this year
+  // True for rows from an outside league's imported board. These are the only
+  // rows allowed to come from the draft year itself, and they carry
+  // `externalWeight` — see ValueModelConfig.
+  external?: boolean;
 }
 
 // A player to estimate, carrying the upcoming season's rankings.
@@ -37,6 +41,27 @@ export interface ValueModelConfig {
   // Comp windows tried in order until minComps comps are found.
   windows: number[];
   minComps: number;
+  // How much an outside league's board counts relative to one of our own picks
+  // from the same year (scripts/import-external-auction.ts, `external` on
+  // HistoryRow). It multiplies the recency weight, so an external comp weighs
+  // externalWeight * decay^(draftYear - year).
+  //
+  // It is not 1. Another league is a different room: same format and roughly
+  // the same market, but its own tendencies, its own runs, its own reaches.
+  // Their board is evidence about this season's prices, not a transcript of
+  // what our league would have done.
+  //
+  // It is also not 0, which is what it effectively was before: external boards
+  // are the only same-year market evidence that exists at all, since our own
+  // auction for the year being priced has not happened yet.
+  //
+  // The default is calibrated so the external board contributes roughly a tenth
+  // of the total comp weight for a typical target — see docs/auction-value-
+  // model.md. It cannot be fitted from data: there is exactly one external
+  // board and no holdout year that contains one, so this is a stated prior, not
+  // a measured parameter. Set it to 0 to exclude external boards entirely,
+  // which is how to reproduce a run that has never seen them.
+  externalWeight: number;
 }
 
 export const DEFAULT_VALUE_MODEL_CONFIG: ValueModelConfig = {
@@ -45,6 +70,7 @@ export const DEFAULT_VALUE_MODEL_CONFIG: ValueModelConfig = {
   draftedPoolSize: 84,
   windows: [2, 4, 8],
   minComps: 3,
+  externalWeight: 0.5,
 };
 
 // Positions the league actually bids on. Cross-position overall-rank comps are
@@ -141,24 +167,34 @@ export function collectComps<R extends HistoryRow>(
   config: ValueModelConfig = DEFAULT_VALUE_MODEL_CONFIG
 ): CompSet<R> {
   const recency = (year: number) => Math.pow(config.decay, draftYear - year);
+  // An outside board informs at a discount; externalWeight 0 drops it entirely,
+  // which `usable` enforces so a zero-weight row never counts toward minComps.
+  const weightOf = (row: R) =>
+    recency(row.year) * (row.external === true ? config.externalWeight : 1);
   // Price 0 rows are kept on purpose — they are ranked players who went
   // undrafted, and they pull the median toward $0 for slots this league
   // rarely pays for.
-  const usable = (row: R) => row.year < draftYear && row.position_rank > 0 && row.price >= 0;
+  // Prior years always; the draft year itself only from an outside league's
+  // completed board. Our own in-progress auction must never become a comp for
+  // the year it is drafting — that would let the first few picks of a live
+  // draft set the price of the rest of it.
+  const inWindow = (row: R) => row.year < draftYear || (row.year === draftYear && row.external === true);
+  const usable = (row: R) =>
+    inWindow(row) && row.position_rank > 0 && row.price >= 0 && weightOf(row) > 0;
   const crossEligible = target.rank > 0 && AUCTION_POSITIONS.has(target.position);
 
   const within = (window: number): MatchedComp<R>[] => {
     const comps: MatchedComp<R>[] = [];
     for (const row of index.byPosition.get(target.position) ?? []) {
       if (usable(row) && Math.abs(row.position_rank - target.position_rank) <= window) {
-        comps.push({ row, match: 'position', weight: recency(row.year) });
+        comps.push({ row, match: 'position', weight: weightOf(row) });
       }
     }
     if (crossEligible) {
       for (const row of index.all) {
         if (row.position === target.position || !AUCTION_POSITIONS.has(row.position)) continue;
         if (usable(row) && row.rank > 0 && Math.abs(row.rank - target.rank) <= window) {
-          comps.push({ row, match: 'overall', weight: recency(row.year) });
+          comps.push({ row, match: 'overall', weight: weightOf(row) });
         }
       }
     }

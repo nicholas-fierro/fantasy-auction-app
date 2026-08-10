@@ -51,6 +51,45 @@ describe('collectComps', () => {
     expect(widened.window).toBe(8);
   });
 
+  it('admits a draft-year row only when it is external, never our own', () => {
+    const target = { position: 'RB', position_rank: 1, rank: 1 };
+    const config = { ...DEFAULT_VALUE_MODEL_CONFIG, windows: [2], minComps: 1 };
+
+    // Our own in-progress draft must not price the draft it is running.
+    const ours = buildCompIndex([
+      row({ year: 2025, position_rank: 1, rank: 1, price: 50 }),
+      row({ year: 2026, position_rank: 1, rank: 1, price: 90 }),
+    ]);
+    expect(collectComps(ours, target, 2026, config).comps.map((c) => c.row.price)).toEqual([50]);
+
+    // The same row from an outside board is evidence, at a discount.
+    const external = buildCompIndex([
+      row({ year: 2025, position_rank: 1, rank: 1, price: 50 }),
+      row({ year: 2026, position_rank: 1, rank: 1, price: 90, external: true }),
+    ]);
+    const comps = collectComps(external, target, 2026, config).comps;
+    expect(comps.map((c) => c.row.price).sort((a, b) => a - b)).toEqual([50, 90]);
+    // decay^0 * externalWeight, not the full same-year weight of 1.
+    expect(comps.find((c) => c.row.year === 2026)?.weight).toBe(
+      DEFAULT_VALUE_MODEL_CONFIG.externalWeight
+    );
+  });
+
+  it('externalWeight 0 drops external rows entirely', () => {
+    const index = buildCompIndex([
+      row({ year: 2025, position_rank: 1, rank: 1, price: 50 }),
+      row({ year: 2026, position_rank: 1, rank: 1, price: 90, external: true }),
+      row({ year: 2024, position_rank: 1, rank: 1, price: 30, external: true }),
+    ]);
+    const { comps } = collectComps(index, { position: 'RB', position_rank: 1, rank: 1 }, 2026, {
+      ...DEFAULT_VALUE_MODEL_CONFIG,
+      windows: [2],
+      minComps: 1,
+      externalWeight: 0,
+    });
+    expect(comps.map((c) => c.row.price)).toEqual([50]);
+  });
+
   it('reports sufficient=false when the widest window is still thin', () => {
     const index = buildCompIndex([row({ position_rank: 1, rank: 1, price: 30 })]);
     const { comps, sufficient } = collectComps(

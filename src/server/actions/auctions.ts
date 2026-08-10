@@ -21,6 +21,9 @@ function mapAuctionRecord(record: RecordModel): Auction {
     status: record.status,
     user: record.user,
     league: record.league || null,
+    // Never set by this action — auctions created through the app always belong
+    // to a user and a league. Only the CLI importer writes external boards.
+    external: record.external === true,
     drafted_at: record.drafted_at || record.created,
     created: record.created,
     updated: record.updated,
