@@ -2,6 +2,43 @@
 
 This file provides guidance to coding agents when working with code in this repository.
 
+## THIS IS A PUBLIC REPOSITORY
+
+`nicholas-fierro/fantasy-auction-app` is **public**. Everything committed here —
+including commit messages, PR titles and bodies, test fixtures, and code
+comments — is world-readable, permanently, and is mirrored into forks and
+GitHub's caches the moment it lands. `git rm` in a later commit does not unpublish
+anything.
+
+**Never commit anything that maps or weakens the production platform.** Not in
+code, not in a comment, not in a commit message, not "temporarily":
+
+- Production hostnames, IPs, ports, or the URL of any non-public endpoint
+- Server filesystem layout, service/unit names, service users, backup locations
+- Hosting provider, VM class, or how the box is reached (VPN, SSH aliases, bastions)
+- Names of environment variables that gate encryption or auth, and obviously
+  their values — no credentials, tokens, keys, or connection strings, ever
+- Operational runbooks: how to deploy, migrate, restart, or restore production
+- Unfixed vulnerabilities, or details of a fixed one specific enough to re-target
+  the live host. Fix first, describe generically, and keep the specifics private
+- Real user data: emails, names, league or team identities, record IDs from prod
+
+Those belong in `.ops/` (local-only, gitignored — the pre-cutover runbooks and
+infrastructure notes are kept there for reference) or in `~/.claude/skills/`
+(user-level — loads in every session and every worktree, never published).
+`.gitignore` blocks both paths, but the gitignore is a backstop, not the rule.
+
+This repository was published from a private predecessor with squashed history
+and cleansed data; `docs/repository-history.md` explains what that means when
+reading the code.
+
+Before committing, ask: *if a stranger read only this diff, what would they learn
+about the production platform?* The answer must be "nothing they could act on."
+
+What IS fine to commit: the app's own architecture, the data model, migrations
+and API rules (they are the authorization logic and must be reviewable), domain
+math, and generic PocketBase mechanics.
+
 ## Rules of Operation
 
 - Always run on caveman ultra mode
@@ -22,7 +59,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 The backend is a locally run PocketBase instance at `http://127.0.0.1:8090` (lives at `~/Pocketbase/main`, started with `./pocketbase serve`). URLs come from `NEXT_PUBLIC_POCKETBASE_URL` (browser) and `POCKETBASE_URL` (server), both falling back to the localhost default.
 
-**Migrations:** canonical copies live in this repo's `pb_migrations/`. To apply one, copy it into `~/Pocketbase/main/pb_migrations/` and restart PocketBase (it applies migrations at startup and caches schema in memory). A schema-changing migration must also be reflected in `pb_migrations/1784300000_baseline_full.js` — CI compares an empty instance built from that baseline against one built from the incremental chain, and a divergence fails `npm run test:integration`. Production migrations follow a separate, privately documented runbook.
+**Migrations:** canonical copies live in this repo's `pb_migrations/`. To apply one, copy it into `~/Pocketbase/main/pb_migrations/` and restart PocketBase (it applies migrations at startup and caches schema in memory). A schema-changing migration must also be reflected in `pb_migrations/1784300000_baseline_full.js` — CI compares an empty instance built from that baseline against one built from the incremental chain, and a divergence fails `npm run test:integration`. Production migrations follow a separate runbook that is deliberately NOT in this repo (see the public-repository rules above) — it lives in `~/.claude/skills/apply-migration/`.
 
 **Hooks:** canonical copies live in this repo's `pb_hooks/` — same workflow (copy into `~/Pocketbase/main/pb_hooks/`, restart). Hooks: server-side `pick_order` assignment on draft-pick creates (AD-19), shared nomination permissions (AD-20), and login rate limiting (`users_login_rate_limit.pb.js` — 10 attempts/15min per IP and per email; enforced in PB because login is client-side authWithPassword and can't be limited in Next.js, #36).
 
