@@ -62,3 +62,11 @@ local.md
 /data/draft-history*.csv
 /data/historical-snake/
 /data/draft-boards/
+
+# Operations material is never committed here — this repo is PUBLIC.
+# Anything naming the production host, its filesystem layout, its systemd
+# units, or its hosting belongs in `.ops/` (local-only, kept for reference) or
+# in ~/.claude/skills/ (user-level, loads in every session and every worktree).
+# See the public-repository rules at the top of AGENTS.md.
+.claude/skills/apply-migration/
+.ops/
