@@ -118,6 +118,9 @@ const expectedRules: Record<string, Partial<Record<'listRule' | 'viewRule' | 'cr
     createRule: '@request.auth.id != "" && auction_id.status = "active" && (auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id || (auction_id.type = "official" && fantasy_team_id.league = auction_id.league && fantasy_team_id.league_members_via_fantasy_team.user ?= @request.auth.id))',
   },
   auction_teams: {
+    // This one actually leaked in production: 96 rows readable anonymously,
+    // because a league-less auction makes the commissioner clause match "".
+    listRule: '@request.auth.id != "" && (auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id || (auction_id.type = "official" && auction_id.league.league_members_via_league.user ?= @request.auth.id))',
     createRule: '@request.auth.id != "" && (auction_id.user = @request.auth.id || auction_id.league.commissioner = @request.auth.id)',
   },
   watchlist: {
@@ -144,14 +147,14 @@ const expectedRules: Record<string, Partial<Record<'listRule' | 'viewRule' | 'cr
     listRule: 'user = @request.auth.id',
   },
   leagues: {
-    listRule: 'commissioner = @request.auth.id || league_members_via_league.user ?= @request.auth.id',
+    listRule: '@request.auth.id != "" && (commissioner = @request.auth.id || league_members_via_league.user ?= @request.auth.id)',
     createRule: null,
   },
   league_members: {
-    listRule: 'league.commissioner = @request.auth.id || league.league_members_via_league.user ?= @request.auth.id',
+    listRule: '@request.auth.id != "" && (league.commissioner = @request.auth.id || league.league_members_via_league.user ?= @request.auth.id)',
   },
   invites: {
-    listRule: 'league.commissioner = @request.auth.id',
+    listRule: '@request.auth.id != "" && (league.commissioner = @request.auth.id)',
   },
   auction_nomination_events: {
     updateRule: null,
