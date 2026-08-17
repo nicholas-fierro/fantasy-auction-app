@@ -74,24 +74,42 @@ const WRITE = process.argv.includes('--write');
 const KEYS = ['ceilMin', 'ceilMax', 'posBudgetSlack', 'marketMeanScale'] as const;
 type Key = (typeof KEYS)[number];
 
-// The ceiling floor is 1.0 BY DECISION, not by measurement. Left free, both an MAE
-// and a CRPS fit drive it under 1.0, which forbids any team from ever bidding above
-// the model value — no bidding wars, no overpays. That genuinely scores better
-// against 2020-2025, because the sim overpays the elite tier by ~$7 there. The
-// league owner's read on the current board says the opposite at the top, and the
-// owner is the authority on his own room. So: the ceiling may not go below 1.0,
-// and ranks 1-12 are excluded from the objective entirely (FIT_MIN_RANK) rather
-// than being fitted against evidence we have chosen not to act on. Fitting a tier
-// you are going to override is how a fit launders a decision as a measurement.
+// The ceiling floor was pinned at 1.0 by decision, so that no fit could forbid a
+// team from bidding above the model value. That decision is reversed, because the
+// thing it was protecting turned out not to be true.
+//
+// At the top of the board the factor stack sits 1.3-1.5x above the model value for
+// every bidder, so all twelve clamp to the ceiling and the clearing price becomes
+// the second-highest of twelve draws from U(ceilMin, ceilMax). With ceilMin at 1.0
+// that is a one-sided floor: an elite player could never clear below his comp
+// value, and the price carried a deterministic +8.5% (measured 1.087, predicted
+// 1 + 0.1*(11/13) = 1.0846). Ranks 1-6 ran ~$84 against $80 on the imported board,
+// with 3.1 picks per draft at $85+ against 1.6-2.0 in real ones.
+//
+// What real rooms do, measured as price / comp-model estimate at ranks 1-12, each
+// year priced only off years before it:
+//
+//   this league 2019-2025  n=72  p10 0.893  median 0.987  p90 1.091  max 1.161
+//   external board 2026    n=12  p10 0.904  median 0.986  p90 1.063  max 1.091
+//
+// They pay the model value at the top and miss BOTH ways. Every year lands between
+// 0.95 and 1.06. So the floor below 1.0 is not "no bidding wars, no overpays" — the
+// overpays live in the upper half of that same interval, and forbidding the lower
+// half is what produced the tilt. ceilMin is free below 1.0, and ranks 1-12 are
+// back in the objective: the tier is no longer being withheld from the fit, so the
+// fit is scored on the whole board it prices. MIN_CEIL_WIDTH still keeps the
+// ceiling an interval, which is what preserves the spread.
 const BOUNDS: Record<Key, [number, number]> = {
-  ceilMin: [1.0, 1.4],
+  ceilMin: [0.8, 1.4],
   ceilMax: [1.0, 2.0],
   posBudgetSlack: [1.0, 3.0],
   marketMeanScale: [0, 2],
 };
 
-// Ranks 1-12 are the owner's call, not the fit's. See BOUNDS above.
-const FIT_MIN_RANK = 13;
+// Every ranked pick is in scope. This was 13 while ranks 1-12 were held out of the
+// objective; see BOUNDS above for why they no longer are. Rank 0 (2018, no rank
+// data imported) is still not comparable and stays out.
+const FIT_MIN_RANK = 1;
 
 // The ceiling must stay an INTERVAL, never a point. Left free, the fit collapses
 // ceilMin and ceilMax onto the same value, which scores well and is a disaster:
@@ -184,10 +202,11 @@ function scoreYear(
 
   // The SIMULATED picks must be cut to the same rank range as the actual ones.
   // `sortedCurveMae` sorts each side's prices and compares them position by
-  // position, so leaving the sim's elite prices in while the actual side starts at
-  // FIT_MIN_RANK lines the sim's $91 top buy up against a rank-13 player — the
-  // fitter then chases a gap that is an artefact of the filter, on the very tier
-  // the objective is supposed to be ignoring.
+  // position, so an asymmetric cut lines the sim's top buy up against a different
+  // player on the actual side and the fitter chases a gap that is an artefact of
+  // the filter. At FIT_MIN_RANK 1 this only drops rank 0 (2018, no rank data), but
+  // it stays symmetric on purpose: raising the floor again must not reintroduce
+  // that bias.
   const fitRuns = runs.map((run) =>
     run.filter((p) => p.price === 0 || p.rank >= FIT_MIN_RANK)
   );
@@ -413,7 +432,7 @@ async function main() {
             objective: Number(full.value.toFixed(4)),
             baselineObjective: Number(baseValue.toFixed(4)),
             script: 'scripts/fit-mock-draft-params.ts',
-            note: 'Only the price-curve constants are fitted. The per-manager profile layer scores at chance on the leave-one-year-out backtest, so it is deliberately not fitted.',
+            note: 'Only the price-curve constants are fitted. The per-manager profile layer scores at chance on the leave-one-year-out backtest, so it is deliberately not fitted. ceilMin is free below 1.0 and ranks 1-12 are inside the objective — see BOUNDS in the fitting script for the measurement that reversed the earlier decision to pin them.',
           },
           params: Object.fromEntries(KEYS.map((k) => [k, Number(full.params[k].toFixed(4))])),
         },
