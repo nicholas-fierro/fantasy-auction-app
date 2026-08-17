@@ -24,7 +24,17 @@ import { isAuctionPosition, TeamState, WtpBreakdown } from './types';
 // every mock draft ever run. Randomizing the ceiling per team keeps the guard
 // (nobody bids far above market) while letting the runner-up actually vary.
 //
-// The range itself is `params.ceilMin` / `params.ceilMax` (see params.ts).
+// The range itself is `params.ceilMin` / `params.ceilMax` (see params.ts). Both
+// ENDS matter, because at the top of the board this range is the only thing that
+// prices anything. The factor stack sits 1.3-1.5x above the model value there, so
+// all twelve bidders clamp and the clearing price is the second-highest of twelve
+// draws from that interval — i.e. ceilMin + (ceilMax - ceilMin) * 11/13, plus the
+// spread the draws provide. A ceilMin of exactly 1.0 therefore does not mean "a
+// team may bid up to the model value"; it means an elite player can never clear
+// BELOW it, which put a deterministic +8.5% on the whole elite tier. Real rooms
+// pay a median 0.99x the model at ranks 1-12 and miss both ways (measured across
+// 2019-2025 and one outside board — see BOUNDS in scripts/fit-mock-draft-params.ts),
+// so the interval has to straddle 1.0 rather than start there.
 
 export function getStarterRequirements(
   settings: RosterSettings = DEFAULT_ROSTER_SETTINGS
