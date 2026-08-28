@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useLeague } from '@/hooks/use-league';
+import { useCommissionerLeague } from '@/hooks/use-league';
 import { useAllFantasyTeams } from '@/hooks/use-fantasy-teams';
 import {
   useCreateInvite,
@@ -39,7 +39,7 @@ import {
   useUpdateLeagueMember,
   useUpdateLeagueSettings,
 } from '@/hooks/use-league-members';
-import { DEFAULT_ROSTER_SETTINGS, type RosterSettings } from '@/lib/roster';
+import type { RosterSettings } from '@/lib/roster';
 import type { ScoringFormat } from '@/lib/fantasy-scoring';
 import { resetMemberPassword } from '@/server/actions/members';
 
@@ -49,7 +49,7 @@ const NO_TEAM = '__none__';
 // password resets), edit league settings, and hand out invite links. Rendered
 // only for the commissioner (admin-view gates the tab).
 export function LeagueView() {
-  const { league } = useLeague();
+  const { league, settings } = useCommissionerLeague();
   const leagueId = league?.id ?? null;
 
   const { data: invites = [] } = useInvites(leagueId);
@@ -125,7 +125,7 @@ export function LeagueView() {
         </CardContent>
       </Card>
 
-      <LeagueSettingsCard leagueId={leagueId} settings={league?.settings ?? DEFAULT_ROSTER_SETTINGS} />
+      <LeagueSettingsCard leagueId={leagueId} settings={settings} />
 
       <Card>
         <CardHeader>
@@ -414,6 +414,7 @@ function LeagueSettingsCard({
 }) {
   const updateSettings = useUpdateLeagueSettings(leagueId);
   const locked = useHasActiveAuction(leagueId);
+  const formDisabled = locked || !leagueId;
 
   // Local form mirrors the persisted settings; strings so number inputs can be
   // cleared while editing. starterPositions edits as a comma-separated list.
@@ -512,7 +513,7 @@ function LeagueSettingsCard({
               min={1}
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
-              disabled={locked}
+              disabled={formDisabled}
             />
           </div>
           <div className="space-y-1">
@@ -524,7 +525,7 @@ function LeagueSettingsCard({
               min={1}
               value={paidAuctionSlots}
               onChange={(e) => setPaidAuctionSlots(e.target.value)}
-              disabled={locked}
+              disabled={formDisabled}
             />
           </div>
           <div className="space-y-1">
@@ -536,7 +537,7 @@ function LeagueSettingsCard({
               min={1}
               value={minimumBid}
               onChange={(e) => setMinimumBid(e.target.value)}
-              disabled={locked}
+              disabled={formDisabled}
             />
           </div>
           <div className="space-y-1">
@@ -548,7 +549,7 @@ function LeagueSettingsCard({
               min={0}
               value={benchSize}
               onChange={(e) => setBenchSize(e.target.value)}
-              disabled={locked}
+              disabled={formDisabled}
             />
           </div>
         </div>
@@ -558,7 +559,7 @@ function LeagueSettingsCard({
             id="settings-starters"
             value={starterPositions}
             onChange={(e) => setStarterPositions(e.target.value)}
-            disabled={locked}
+            disabled={formDisabled}
             placeholder="QB, RB, RB, WR, WR, TE, FLEX, K, DST"
           />
           <p className="text-xs text-muted-foreground">Comma-separated, in starting-lineup order. Use FLEX for RB/WR/TE flex spots.</p>
@@ -568,7 +569,7 @@ function LeagueSettingsCard({
           <Select
             value={scoringFormat}
             onValueChange={(value) => setScoringFormat(value as ScoringFormat)}
-            disabled={locked}
+            disabled={formDisabled}
           >
             <SelectTrigger id="settings-scoring">
               <SelectValue />
@@ -586,7 +587,7 @@ function LeagueSettingsCard({
         <div>
           <Button
             onClick={handleSave}
-            disabled={locked || updateSettings.isPending || !leagueId}
+            disabled={formDisabled || updateSettings.isPending}
             className="max-md:h-11 max-md:w-full"
           >
             Save settings

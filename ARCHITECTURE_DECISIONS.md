@@ -336,7 +336,9 @@ invite token against another collection during user creation.
 **Consequences.** `USER_TEAM_ID` is gone (retiring AD-9's flagged debt):
 `useUserTeamId()` / `useLeague()` / `useDraftRole()` (`src/hooks/use-league.ts`)
 derive the user's team, league settings, and pick-entry role from the selected
-auction's league. `activeAuction` in the auction context is the default owned
+auction's league. Commissioner admin surfaces instead use `useCommissionerLeague()`
+to resolve the administered league directly, so league management remains available
+without any auction selected. `activeAuction` in the auction context is the default owned
 active selection, not proof of uniqueness: each owner may have at most one active
 draft per type, while an official and a mock draft may coexist. Same-type
 replacement requires an explicit complete/delete action, and pick writes/sim
