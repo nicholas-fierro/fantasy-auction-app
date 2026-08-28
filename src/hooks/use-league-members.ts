@@ -41,11 +41,12 @@ export function useDeleteLeagueMember(leagueId: string | null) {
   });
 }
 
-// Persist edited league settings. useLeague reads leagues.settings and merges it
-// field-by-field over DEFAULT_ROSTER_SETTINGS, so writing a full RosterSettings
-// blob is safe. Invalidates the ['league', id] query the whole app derives from.
+// Persist edited league settings. League queries merge leagues.settings over
+// DEFAULT_ROSTER_SETTINGS, so writing a full RosterSettings blob is safe. Refresh
+// both auction-scoped and commissioner-scoped league caches after saving.
 export function useUpdateLeagueSettings(leagueId: string | null) {
   const queryClient = useQueryClient();
+  const userId = pb.authStore.record?.id ?? null;
   return useMutation({
     mutationFn: async (settings: RosterSettings) => {
       if (!leagueId) throw new Error('No league selected');
@@ -53,6 +54,7 @@ export function useUpdateLeagueSettings(leagueId: string | null) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['league', leagueId] });
+      queryClient.invalidateQueries({ queryKey: ['commissioner-league', userId] });
     },
   });
 }

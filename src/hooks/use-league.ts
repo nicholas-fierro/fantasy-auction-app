@@ -1,24 +1,45 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import type { RecordModel } from 'pocketbase';
 import { pb } from '@/lib/pb-client';
 import { useAuction } from '@/contexts/auction-context';
 import { DEFAULT_ROSTER_SETTINGS, type RosterSettings } from '@/lib/roster';
 import { isScoringFormat } from '@/lib/fantasy-scoring';
 
-// League context for the selected auction — replaces the hardcoded
-// USER_TEAM_ID constant and DEFAULT_ROSTER_SETTINGS-only configuration
-// (retires the AD-9 consequence; see docs/multi-user-plan.md).
-//
-// All three hooks key off the selected auction's `league` relation. Legacy
-// auctions without a league (or a signed-in user without a membership) degrade
-// gracefully: default settings, no user team, not commissioner.
+// Draft context uses the selected auction's league; commissioner admin context
+// resolves its league directly so it remains available without a selected draft.
+// Legacy auctions without a league (or a signed-in user without a membership)
+// degrade gracefully: default settings, no user team, not commissioner.
 
 export interface LeagueInfo {
   id: string;
   name: string;
   commissioner: string;
   settings: RosterSettings;
+}
+
+function mapLeagueRecord(record: RecordModel): LeagueInfo {
+  // Unknown/missing keys fall back field-by-field so a partial settings blob
+  // can't produce a half-configured league.
+  const settings: RosterSettings = {
+    ...DEFAULT_ROSTER_SETTINGS,
+    ...(record.settings ?? {}),
+  };
+
+  return {
+    id: record.id,
+    name: record.name,
+    commissioner: record.commissioner,
+    settings: {
+      ...settings,
+      // An unrecognized format would reach scoring as an undefined multiplier
+      // and silently turn every points column into NaN.
+      scoringFormat: isScoringFormat(settings.scoringFormat)
+        ? settings.scoringFormat
+        : DEFAULT_ROSTER_SETTINGS.scoringFormat,
+    },
+  };
 }
 
 export function useLeague(): {
@@ -33,27 +54,7 @@ export function useLeague(): {
     queryKey: ['league', leagueId],
     queryFn: async (): Promise<LeagueInfo> => {
       const record = await pb.collection('leagues').getOne(leagueId!);
-      // Unknown/missing keys fall back field-by-field so a partial settings
-      // blob can't produce a half-configured league.
-      const settings: RosterSettings = {
-        ...DEFAULT_ROSTER_SETTINGS,
-        ...(record.settings ?? {}),
-      };
-      return {
-        id: record.id,
-        name: record.name,
-        commissioner: record.commissioner,
-        settings: {
-          ...settings,
-          // `leagues.settings` is an untyped json column, so the spread above can
-          // carry through whatever was written to it. An unrecognized format would
-          // reach the scoring table as an undefined multiplier and silently turn
-          // every points column into NaN — fall back instead.
-          scoringFormat: isScoringFormat(settings.scoringFormat)
-            ? settings.scoringFormat
-            : DEFAULT_ROSTER_SETTINGS.scoringFormat,
-        },
-      };
+      return mapLeagueRecord(record);
     },
     enabled: !!leagueId,
     staleTime: 5 * 60 * 1000, // league config changes rarely
@@ -72,20 +73,34 @@ export function useLeague(): {
 // draft is active — useLeague().isCommissioner is auction-scoped and goes false
 // with no auction selected. A user commissions at most one league (leagues
 // listRule allows `commissioner = @request.auth.id`).
-export function useIsCommissioner(): boolean {
+export function useCommissionerLeague(): {
+  league: LeagueInfo | null;
+  settings: RosterSettings;
+} {
   const userId = pb.authStore.record?.id ?? null;
   const { data } = useQuery({
-    queryKey: ['is-commissioner', userId],
-    queryFn: async (): Promise<boolean> => {
+    queryKey: ['commissioner-league', userId],
+    queryFn: async (): Promise<LeagueInfo | null> => {
       const rows = await pb.collection('leagues').getList(1, 1, {
         filter: pb.filter('commissioner = {:userId}', { userId }),
       });
-      return rows.items.length > 0;
+      const record = rows.items[0];
+      return record ? mapLeagueRecord(record) : null;
     },
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
   });
-  return data ?? false;
+
+  return {
+    league: data ?? null,
+    settings: data?.settings ?? DEFAULT_ROSTER_SETTINGS,
+  };
+}
+
+// Boolean convenience for commissioner-only surfaces.
+export function useIsCommissioner(): boolean {
+  const { league } = useCommissionerLeague();
+  return !!league;
 }
 
 // The signed-in user's fantasy team in the selected auction's league, from
