@@ -5,6 +5,7 @@ import { ArrowLeft, Check, Dices, Eye, History, Lock, Trash2, Trophy } from 'luc
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,8 @@ function DraftHistoryList() {
   const completedDrafts = auctions.filter((auction) =>
     auction.status === 'completed' && (auction.type === 'official' || auction.user === userId)
   );
+  const [draftType, setDraftType] = useState<'official' | 'mock'>('official');
+  const visibleDrafts = completedDrafts.filter((auction) => auction.type === draftType);
   const [newDraftType, setNewDraftType] = useState<'official' | 'mock'>('mock');
   const [showNewDraft, setShowNewDraft] = useState(false);
   const [auctionToDelete, setAuctionToDelete] = useState<Auction | null>(null);
@@ -101,9 +104,20 @@ function DraftHistoryList() {
           </div>
         </div>
 
-        {completedDrafts.length > 0 ? (
+        <Tabs
+          value={draftType}
+          onValueChange={(value) => setDraftType(value === 'mock' ? 'mock' : 'official')}
+          className="mb-6"
+        >
+          <TabsList>
+            <TabsTrigger value="official">Official drafts</TabsTrigger>
+            <TabsTrigger value="mock">Mock drafts</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {visibleDrafts.length > 0 ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(330px,100%),1fr))] gap-4">
-            {completedDrafts.map((auction) => (
+            {visibleDrafts.map((auction) => (
               <Card key={auction.id} className="gap-0 rounded-[14px] py-0 shadow-sm transition hover:border-gray-300 hover:shadow-md">
                 <CardContent className="flex h-full flex-col p-5">
                   <div className="mb-3 flex items-center gap-2">
@@ -161,22 +175,29 @@ function DraftHistoryList() {
             <div className="mx-auto mb-5 flex h-[60px] w-[60px] items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-gray-900">
               <History className="h-[30px] w-[30px]" />
             </div>
-            <h2 className="text-[19px] font-bold text-gray-900 dark:text-white">No completed drafts yet</h2>
+            <h2 className="text-[19px] font-bold text-gray-900 dark:text-white">
+              No completed {draftType} drafts yet
+            </h2>
             <p className="mx-auto mt-2.5 max-w-[440px] text-pretty text-sm leading-[1.55] text-gray-500 dark:text-gray-400">
-              Once a draft wraps, it lands here for review — final rosters, spend, and the full board, all read-only. Nothing&apos;s finished yet, so start one to get going.
+              {draftType === 'mock'
+                ? 'Once a mock draft wraps, it lands here for review — final rosters, spend, and the full board, all read-only.'
+                : 'Once an official draft wraps, it lands here for review — final rosters, spend, and the full board, all read-only.'}
             </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Button className="bg-neutral-900 hover:bg-neutral-700 max-md:h-11" onClick={() => openNewDraft('mock')}>
-                <Dices className="h-4 w-4" />
-                Start a mock draft
-              </Button>
-              {isCommissioner && (
-                <Button className="bg-blue-700 hover:bg-blue-800 max-md:h-11" onClick={() => openNewDraft('official')}>
-                  <Trophy className="h-4 w-4" />
-                  Start an official draft
-                </Button>
-              )}
-            </div>
+            {(draftType === 'mock' || isCommissioner) && (
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                {draftType === 'mock' ? (
+                  <Button className="bg-neutral-900 hover:bg-neutral-700 max-md:h-11" onClick={() => openNewDraft('mock')}>
+                    <Dices className="h-4 w-4" />
+                    Start a mock draft
+                  </Button>
+                ) : (
+                  <Button className="bg-blue-700 hover:bg-blue-800 max-md:h-11" onClick={() => openNewDraft('official')}>
+                    <Trophy className="h-4 w-4" />
+                    Start an official draft
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
