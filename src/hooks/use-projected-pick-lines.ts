@@ -6,7 +6,11 @@ import { useNavigation } from '@/contexts/navigation-context';
 import { useAllDraftPicks } from '@/hooks/use-draft-picks';
 import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
 import { useLeague, useUserTeamId } from '@/hooks/use-league';
-import { getUpcomingTeamPicks, type ProjectedTeamPick } from '@/lib/snake-pick-projection';
+import {
+  getUpcomingTeamPicks,
+  mapPicksToRowIndices,
+  type ProjectedTeamPick,
+} from '@/lib/snake-pick-projection';
 import type { Player } from '@/server/types/player';
 
 // Sleeper-style projection lines: for each of the signed-in member's remaining
@@ -38,24 +42,14 @@ export function useProjectedPickLines(
   }, [isReadOnly, isSnakeMode, teams, draftPicks.length, userTeamId, settings]);
 
   return useMemo(() => {
-    const lines = new Map<number, ProjectedTeamPick>();
     // A position filter or search shows a slice of the board, so "N players
     // from here" no longer maps to N picks — the lines would lie. Drop them
     // rather than draw them somewhere defensible-looking but wrong.
-    if (isFiltered || upcoming.length === 0) return lines;
-
-    const byPicksAway = new Map(upcoming.map(pick => [pick.picksAway, pick]));
-    let available = 0;
-    for (let index = 0; index < visiblePlayers.length; index++) {
-      const pick = byPicksAway.get(available);
-      // Drafted rows are already off the board; only undrafted rows advance
-      // the count, but the line index still addresses the rendered list.
-      if (pick) {
-        lines.set(index, pick);
-        byPicksAway.delete(available);
-      }
-      if (!draftedPlayerIds.has(visiblePlayers[index].id)) available++;
-    }
-    return lines;
+    if (isFiltered) return new Map<number, ProjectedTeamPick>();
+    return mapPicksToRowIndices(
+      visiblePlayers,
+      player => draftedPlayerIds.has(player.id),
+      upcoming,
+    );
   }, [visiblePlayers, draftedPlayerIds, isFiltered, upcoming]);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getUpcomingTeamPicks } from './snake-pick-projection';
+import { getUpcomingTeamPicks, mapPicksToRowIndices } from './snake-pick-projection';
 
 const teams = [
   { id: 'team-a', draft_order: 1 },
@@ -57,5 +57,57 @@ describe('getUpcomingTeamPicks', () => {
       const expected = ['team-a', 'team-b', 'team-c', 'team-c', 'team-b', 'team-a', 'team-a', 'team-b', 'team-c'][made];
       expect(onClock?.id).toBe(expected);
     }
+  });
+});
+
+describe('mapPicksToRowIndices', () => {
+  const pick = (picksAway: number) => ({
+    pickOrder: 100 + picksAway,
+    round: 8,
+    pickInRound: 1,
+    picksAway,
+  });
+  // Rows are `[name, drafted]`; the mapper only cares about the flag.
+  const row = (drafted: boolean) => ({ drafted });
+  const isDrafted = (r: { drafted: boolean }) => r.drafted;
+
+  it('anchors each divider to the Nth still-available row', () => {
+    const rows = [false, false, false, false].map(row);
+    const lines = mapPicksToRowIndices(rows, isDrafted, [pick(0), pick(2)]);
+    expect([...lines.keys()]).toEqual([0, 2]);
+  });
+
+  it('skips drafted rows so the on-the-clock line lands on the best available player', () => {
+    // The top three of the board were auctioned off and are still rendered
+    // ("hide drafted" off) — the divider belongs at row 3, not row 0.
+    const rows = [true, true, true, false, false].map(row);
+    const lines = mapPicksToRowIndices(rows, isDrafted, [pick(0), pick(1)]);
+    expect([...lines.keys()]).toEqual([3, 4]);
+  });
+
+  it('does not let drafted rows advance the pick count', () => {
+    // Two available rows, then a drafted one, then more available: the
+    // 2-picks-away line sits on the third *available* row — index 3, since
+    // the drafted row between them is not a pick anyone spends.
+    const rows = [false, false, true, false, false].map(row);
+    const lines = mapPicksToRowIndices(rows, isDrafted, [pick(2)]);
+    expect([...lines.keys()]).toEqual([3]);
+  });
+
+  it('drops turns projected past the end of the visible board', () => {
+    const rows = [false, false].map(row);
+    const lines = mapPicksToRowIndices(rows, isDrafted, [pick(0), pick(9)]);
+    expect([...lines.keys()]).toEqual([0]);
+  });
+
+  it('returns nothing with no upcoming turns or no rows', () => {
+    expect(mapPicksToRowIndices([false].map(row), isDrafted, []).size).toBe(0);
+    expect(mapPicksToRowIndices([], isDrafted, [pick(0)]).size).toBe(0);
+  });
+
+  it('carries the projected turn through as the map value', () => {
+    const target = pick(3);
+    const rows = [false, false, false, false].map(row);
+    expect(mapPicksToRowIndices(rows, isDrafted, [target]).get(3)).toBe(target);
   });
 });

@@ -66,3 +66,30 @@ export function getUpcomingTeamPicks({
 
   return picks;
 }
+
+// Where each projected turn's divider goes in a rendered player list: the row
+// index of the Nth still-available player, for N = that turn's `picksAway`.
+// Drafted rows are already off the board, so they neither advance the count
+// nor can carry a divider — anchoring to one would strand the on-the-clock
+// line above a block of players who are already gone.
+export function mapPicksToRowIndices<T>(
+  rows: readonly T[],
+  isDrafted: (row: T) => boolean,
+  upcoming: readonly ProjectedTeamPick[],
+): Map<number, ProjectedTeamPick> {
+  const lines = new Map<number, ProjectedTeamPick>();
+  if (upcoming.length === 0) return lines;
+
+  const byPicksAway = new Map(upcoming.map(pick => [pick.picksAway, pick]));
+  let available = 0;
+  for (let index = 0; index < rows.length && byPicksAway.size > 0; index++) {
+    if (isDrafted(rows[index])) continue;
+    const pick = byPicksAway.get(available);
+    if (pick) {
+      lines.set(index, pick);
+      byPicksAway.delete(available);
+    }
+    available++;
+  }
+  return lines;
+}
