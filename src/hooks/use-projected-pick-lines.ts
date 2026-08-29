@@ -1,0 +1,61 @@
+'use client';
+
+import { useMemo } from 'react';
+import { useAuction } from '@/contexts/auction-context';
+import { useNavigation } from '@/contexts/navigation-context';
+import { useAllDraftPicks } from '@/hooks/use-draft-picks';
+import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
+import { useLeague, useUserTeamId } from '@/hooks/use-league';
+import { getUpcomingTeamPicks, type ProjectedTeamPick } from '@/lib/snake-pick-projection';
+import type { Player } from '@/server/types/player';
+
+// Sleeper-style projection lines: for each of the signed-in member's remaining
+// snake turns, a divider drawn where the board is expected to be by then, so
+// the players above a line are the ones plausibly still there at that pick.
+// The projection is "picks come off the top of the board in rank order" — the
+// same naive assumption the commercial platforms make.
+export function useProjectedPickLines(
+  visiblePlayers: Player[],
+  draftedPlayerIds: Set<string>,
+  isFiltered: boolean,
+): Map<number, ProjectedTeamPick> {
+  const { isReadOnly } = useAuction();
+  const { isSnakeMode } = useNavigation();
+  const { data: draftPicks = [] } = useAllDraftPicks();
+  const { data: teams = [] } = useAuctionTeams();
+  const { settings } = useLeague();
+  const userTeamId = useUserTeamId();
+
+  const upcoming = useMemo(() => {
+    if (isReadOnly || !isSnakeMode) return [];
+    return getUpcomingTeamPicks({
+      teams,
+      totalPicks: draftPicks.length,
+      teamId: userTeamId,
+      totalRounds: settings.starterPositions.length + settings.benchSize,
+      paidAuctionSlots: settings.paidAuctionSlots,
+    });
+  }, [isReadOnly, isSnakeMode, teams, draftPicks.length, userTeamId, settings]);
+
+  return useMemo(() => {
+    const lines = new Map<number, ProjectedTeamPick>();
+    // A position filter or search shows a slice of the board, so "N players
+    // from here" no longer maps to N picks — the lines would lie. Drop them
+    // rather than draw them somewhere defensible-looking but wrong.
+    if (isFiltered || upcoming.length === 0) return lines;
+
+    const byPicksAway = new Map(upcoming.map(pick => [pick.picksAway, pick]));
+    let available = 0;
+    for (let index = 0; index < visiblePlayers.length; index++) {
+      const pick = byPicksAway.get(available);
+      // Drafted rows are already off the board; only undrafted rows advance
+      // the count, but the line index still addresses the rendered list.
+      if (pick) {
+        lines.set(index, pick);
+        byPicksAway.delete(available);
+      }
+      if (!draftedPlayerIds.has(visiblePlayers[index].id)) available++;
+    }
+    return lines;
+  }, [visiblePlayers, draftedPlayerIds, isFiltered, upcoming]);
+}
