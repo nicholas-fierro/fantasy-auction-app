@@ -5,7 +5,7 @@ import { ArrowLeft, Check, Dices, Eye, History, Lock, Trash2, Trophy } from 'luc
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -35,7 +35,13 @@ function formatDate(value: string): string {
     : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function DraftHistoryList() {
+function DraftHistoryList({
+  draftType,
+  setDraftType,
+}: {
+  draftType: 'official' | 'mock';
+  setDraftType: (type: 'official' | 'mock') => void;
+}) {
   const { auctions, setSelectedAuctionId } = useAuction();
   const { returnToDashboard } = useNavigation();
   const isCommissioner = useIsCommissioner();
@@ -47,8 +53,6 @@ function DraftHistoryList() {
   const completedDrafts = auctions.filter((auction) =>
     auction.status === 'completed' && (auction.type === 'official' || auction.user === userId)
   );
-  const [draftType, setDraftType] = useState<'official' | 'mock'>('official');
-  const visibleDrafts = completedDrafts.filter((auction) => auction.type === draftType);
   const [newDraftType, setNewDraftType] = useState<'official' | 'mock'>('mock');
   const [showNewDraft, setShowNewDraft] = useState(false);
   const [auctionToDelete, setAuctionToDelete] = useState<Auction | null>(null);
@@ -107,99 +111,105 @@ function DraftHistoryList() {
         <Tabs
           value={draftType}
           onValueChange={(value) => setDraftType(value === 'mock' ? 'mock' : 'official')}
-          className="mb-6"
         >
-          <TabsList>
+          <TabsList className="mb-6">
             <TabsTrigger value="official">Official drafts</TabsTrigger>
             <TabsTrigger value="mock">Mock drafts</TabsTrigger>
           </TabsList>
-        </Tabs>
 
-        {visibleDrafts.length > 0 ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(330px,100%),1fr))] gap-4">
-            {visibleDrafts.map((auction) => (
-              <Card key={auction.id} className="gap-0 rounded-[14px] py-0 shadow-sm transition hover:border-gray-300 hover:shadow-md">
-                <CardContent className="flex h-full flex-col p-5">
-                  <div className="mb-3 flex items-center gap-2">
-                    <Badge
-                      variant="secondary"
-                      className={auction.type === 'official'
-                        ? 'bg-blue-100 text-[10px] font-extrabold tracking-[0.06em] text-blue-700 dark:bg-blue-950/60 dark:text-blue-400'
-                        : 'text-[10px] font-extrabold tracking-[0.06em] text-gray-600 dark:text-gray-300'}
-                    >
-                      {auction.type.toUpperCase()}
-                    </Badge>
-                    {auction.sim && (
-                      <Badge className="border-0 bg-purple-100 text-[10px] font-bold text-purple-700 hover:bg-purple-100 dark:bg-purple-950/60 dark:text-purple-400">
-                        SIMULATED
-                      </Badge>
-                    )}
-                    <Badge variant="secondary" className="ml-auto rounded-full text-[11px] text-gray-600">
-                      <Check className="h-3 w-3" />
-                      Completed
-                    </Badge>
+          {(['official', 'mock'] as const).map((type) => {
+            const drafts = completedDrafts.filter((auction) => auction.type === type);
+            return (
+              <TabsContent key={type} value={type}>
+                {drafts.length > 0 ? (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(330px,100%),1fr))] gap-4">
+                    {drafts.map((auction) => (
+                      <Card key={auction.id} className="gap-0 rounded-[14px] py-0 shadow-sm transition hover:border-gray-300 hover:shadow-md">
+                        <CardContent className="flex h-full flex-col p-5">
+                          <div className="mb-3 flex items-center gap-2">
+                            <Badge
+                              variant="secondary"
+                              className={auction.type === 'official'
+                                ? 'bg-blue-100 text-[10px] font-extrabold tracking-[0.06em] text-blue-700 dark:bg-blue-950/60 dark:text-blue-400'
+                                : 'text-[10px] font-extrabold tracking-[0.06em] text-gray-600 dark:text-gray-300'}
+                            >
+                              {auction.type.toUpperCase()}
+                            </Badge>
+                            {auction.sim && (
+                              <Badge className="border-0 bg-purple-100 text-[10px] font-bold text-purple-700 hover:bg-purple-100 dark:bg-purple-950/60 dark:text-purple-400">
+                                SIMULATED
+                              </Badge>
+                            )}
+                            <Badge variant="secondary" className="ml-auto rounded-full text-[11px] text-gray-600">
+                              <Check className="h-3 w-3" />
+                              Completed
+                            </Badge>
+                          </div>
+                          <div className="text-[17px] font-bold tracking-[-0.01em] text-gray-900 dark:text-white">
+                            {auction.name}
+                          </div>
+                          <div className="mt-1.5 text-[12.5px] text-gray-500 dark:text-gray-400">
+                            Completed {formatDate(auction.updated)} · {auction.year ? `Season ${auction.year}` : 'Legacy'}
+                          </div>
+                          <div className="mt-4 flex gap-2">
+                            <Button
+                              variant="outline"
+                              className="h-10 flex-1 bg-gray-50 font-bold text-blue-700 max-md:h-11 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 dark:bg-gray-900 dark:text-blue-400"
+                              onClick={() => setSelectedAuctionId(auction.id)}
+                            >
+                              <Eye className="h-4 w-4" />
+                              Review Draft
+                            </Button>
+                            {isEditing && auction.user === userId && (
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-10 w-10 shrink-0 max-md:size-11 text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:border-red-900"
+                                onClick={() => setAuctionToDelete(auction)}
+                                aria-label="Delete draft"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
-                  <div className="text-[17px] font-bold tracking-[-0.01em] text-gray-900 dark:text-white">
-                    {auction.name}
-                  </div>
-                  <div className="mt-1.5 text-[12.5px] text-gray-500 dark:text-gray-400">
-                    Completed {formatDate(auction.updated)} · {auction.year ? `Season ${auction.year}` : 'Legacy'}
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="h-10 flex-1 bg-gray-50 font-bold text-blue-700 max-md:h-11 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 dark:bg-gray-900 dark:text-blue-400"
-                      onClick={() => setSelectedAuctionId(auction.id)}
-                    >
-                      <Eye className="h-4 w-4" />
-                      Review Draft
-                    </Button>
-                    {isEditing && auction.user === userId && (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-10 w-10 shrink-0 max-md:size-11 text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:border-red-900"
-                        onClick={() => setAuctionToDelete(auction)}
-                        aria-label="Delete draft"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center dark:border-gray-700 dark:bg-gray-950 sm:px-8">
-            <div className="mx-auto mb-5 flex h-[60px] w-[60px] items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-gray-900">
-              <History className="h-[30px] w-[30px]" />
-            </div>
-            <h2 className="text-[19px] font-bold text-gray-900 dark:text-white">
-              No completed {draftType} drafts yet
-            </h2>
-            <p className="mx-auto mt-2.5 max-w-[440px] text-pretty text-sm leading-[1.55] text-gray-500 dark:text-gray-400">
-              {draftType === 'mock'
-                ? 'Once a mock draft wraps, it lands here for review — final rosters, spend, and the full board, all read-only.'
-                : 'Once an official draft wraps, it lands here for review — final rosters, spend, and the full board, all read-only.'}
-            </p>
-            {(draftType === 'mock' || isCommissioner) && (
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
-                {draftType === 'mock' ? (
-                  <Button className="bg-neutral-900 hover:bg-neutral-700 max-md:h-11" onClick={() => openNewDraft('mock')}>
-                    <Dices className="h-4 w-4" />
-                    Start a mock draft
-                  </Button>
                 ) : (
-                  <Button className="bg-blue-700 hover:bg-blue-800 max-md:h-11" onClick={() => openNewDraft('official')}>
-                    <Trophy className="h-4 w-4" />
-                    Start an official draft
-                  </Button>
+                  <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center dark:border-gray-700 dark:bg-gray-950 sm:px-8">
+                    <div className="mx-auto mb-5 flex h-[60px] w-[60px] items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-gray-900">
+                      <History className="h-[30px] w-[30px]" />
+                    </div>
+                    <h2 className="text-[19px] font-bold text-gray-900 dark:text-white">
+                      No completed {type} drafts yet
+                    </h2>
+                    <p className="mx-auto mt-2.5 max-w-[440px] text-pretty text-sm leading-[1.55] text-gray-500 dark:text-gray-400">
+                      {type === 'mock'
+                        ? 'Once a mock draft wraps, it lands here for review — final rosters, spend, and the full board, all read-only.'
+                        : 'Once an official draft wraps, it lands here for review — final rosters, spend, and the full board, all read-only.'}
+                    </p>
+                    {(type === 'mock' || isCommissioner) && (
+                      <div className="mt-6 flex flex-wrap justify-center gap-3">
+                        {type === 'mock' ? (
+                          <Button className="bg-neutral-900 hover:bg-neutral-700 max-md:h-11" onClick={() => openNewDraft('mock')}>
+                            <Dices className="h-4 w-4" />
+                            Start a mock draft
+                          </Button>
+                        ) : (
+                          <Button className="bg-blue-700 hover:bg-blue-800 max-md:h-11" onClick={() => openNewDraft('official')}>
+                            <Trophy className="h-4 w-4" />
+                            Start an official draft
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
-          </div>
-        )}
+              </TabsContent>
+            );
+          })}
+        </Tabs>
       </div>
 
       <NewAuctionModal
@@ -396,10 +406,11 @@ function CompletedDraftDetail({ auction }: { auction: Auction }) {
 
 export function DraftHistoryView() {
   const { selectedAuction } = useAuction();
+  const [draftType, setDraftType] = useState<'official' | 'mock'>('official');
 
   if (selectedAuction?.status === 'completed') {
     return <CompletedDraftDetail auction={selectedAuction} />;
   }
 
-  return <DraftHistoryList />;
+  return <DraftHistoryList draftType={draftType} setDraftType={setDraftType} />;
 }
