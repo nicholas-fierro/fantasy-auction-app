@@ -22,6 +22,7 @@ export interface CreateAuctionInput {
   name: string;
   year: number;
   type: 'official' | 'mock';
+  leagueId: string;
   sim?: boolean;
   teamOrder: {
     fantasy_team_id: string;

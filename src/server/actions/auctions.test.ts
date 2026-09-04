@@ -11,7 +11,7 @@ vi.mock('@/server/lib/auction-guard', () => ({ assertAuctionOwned: auctionGuard.
 const { createAuction, replaceAuction } = await import('./auctions');
 
 type AuctionType = CreateAuctionInput['type'];
-type ActiveAuction = { id: string; type: AuctionType };
+type ActiveAuction = { id: string; type: AuctionType; league?: string };
 type BatchRequest = { collection: string; method: string; args: unknown[] };
 
 function input(type: AuctionType): CreateAuctionInput {
@@ -19,11 +19,17 @@ function input(type: AuctionType): CreateAuctionInput {
     name: `${type} draft`,
     year: 2026,
     type,
+    leagueId: 'league-1',
     teamOrder: [{ fantasy_team_id: 'team-1', draft_order: 1 }],
   };
 }
 
-function createPocketBase(activeAuctions: ActiveAuction[], picks: { id: string }[] = []) {
+function createPocketBase(
+  activeAuctions: ActiveAuction[],
+  picks: { id: string }[] = [],
+  membershipLeague: string | null = 'league-1',
+  commissioner = 'user-1',
+) {
   const auctionRecord = {
     id: 'new-auction',
     name: 'draft',
@@ -60,8 +66,18 @@ function createPocketBase(activeAuctions: ActiveAuction[], picks: { id: string }
   };
   const auctionTeams = { create: vi.fn() };
   const collections = {
-    league_members: { getList: vi.fn(async () => ({ items: [{ league: 'league-1' }] })) },
-    leagues: { getOne: vi.fn(async () => ({ commissioner: 'user-1' })) },
+    league_members: {
+      getList: vi.fn(async (
+        _page: number,
+        _perPage: number,
+        options: { filter: Record<string, string> },
+      ) => ({
+        items: membershipLeague && options.filter.leagueId === membershipLeague
+          ? [{ league: membershipLeague }]
+          : [],
+      })),
+    },
+    leagues: { getOne: vi.fn(async () => ({ commissioner })) },
     auctions,
     auction_teams: auctionTeams,
     draft_picks: { getFullList: vi.fn(async () => picks) },
@@ -95,6 +111,7 @@ beforeEach(() => {
     type: 'mock',
     status: 'active',
     user: 'user-1',
+    league: 'league-1',
   });
 });
 
@@ -119,6 +136,45 @@ describe('createAuction active draft lifecycle', () => {
     expect(fake.auctions.update).not.toHaveBeenCalled();
     expect(fake.auctions.create).toHaveBeenCalledTimes(1);
     expect(fake.auctionTeams.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates the draft in the selected league', async () => {
+    const selected = { ...input('mock'), leagueId: 'league-2' };
+    const fake = createPocketBase([], [], 'league-2');
+    auth.requireAuth.mockResolvedValue({ pb: fake.pb, userId: 'user-1' });
+
+    await expect(createAuction(selected)).resolves.toMatchObject({
+      league: 'league-2',
+      status: 'active',
+    });
+
+    expect(fake.pb.filter).toHaveBeenCalledWith(
+      'user = {:userId} && league = {:leagueId}',
+      { userId: 'user-1', leagueId: 'league-2' },
+    );
+    expect(fake.auctions.create).toHaveBeenCalledWith(
+      expect.objectContaining({ league: 'league-2' }),
+    );
+  });
+
+  it('rejects a draft for a league the caller has not joined', async () => {
+    const fake = createPocketBase([], [], null);
+    auth.requireAuth.mockResolvedValue({ pb: fake.pb, userId: 'user-1' });
+
+    await expect(createAuction(input('mock'))).rejects.toThrow(
+      'You must be a member of the selected league',
+    );
+    expect(fake.auctions.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects an official draft for a league the caller does not commission', async () => {
+    const fake = createPocketBase([], [], 'league-1', 'other-user');
+    auth.requireAuth.mockResolvedValue({ pb: fake.pb, userId: 'user-1' });
+
+    await expect(createAuction(input('official'))).rejects.toThrow(
+      'Only the selected league commissioner can start an official auction',
+    );
+    expect(fake.auctions.create).not.toHaveBeenCalled();
   });
 
   it.each(['mock', 'official'] as const)('blocks a second active %s draft', async (type) => {
@@ -157,6 +213,23 @@ describe('replaceAuction', () => {
       'Failed to replace auction'
     );
 
+    expect(fake.pb.createBatch).not.toHaveBeenCalled();
+  });
+
+  it('rejects moving a replacement draft into another league', async () => {
+    const fake = createPocketBase([]);
+    auctionGuard.assertAuctionOwned.mockResolvedValue({
+      id: 'active-auction',
+      user: 'user-1',
+      type: 'mock',
+      status: 'active',
+      league: 'league-2',
+    });
+    auth.requireAuth.mockResolvedValue({ pb: fake.pb, userId: 'user-1' });
+
+    await expect(replaceAuction('active-auction', input('mock'), 'complete')).rejects.toThrow(
+      'Replacement auction must stay in the same league',
+    );
     expect(fake.pb.createBatch).not.toHaveBeenCalled();
   });
 

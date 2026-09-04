@@ -12,7 +12,7 @@ interface AuctionContextType {
   accessibleActiveAuctions: Auction[];
   selectedAuction: Auction | null;
   selectedAuctionId: string | null;
-  setSelectedAuctionId: (id: string | null) => void;
+  setSelectedAuctionId: (id: string | null, leagueId?: string | null) => void;
   forgetSelectedAuctionId: () => void;
   selectedYear: number;
   activeAuction: Auction | null;
@@ -59,11 +59,15 @@ export function AuctionProvider({ children }: { children: ReactNode }) {
     [allAuctions, selectedLeagueId],
   );
 
-  const setSelectedAuctionId = useCallback((id: string | null) => {
+  const setSelectedAuctionId = useCallback((
+    id: string | null,
+    leagueId?: string | null,
+  ) => {
     if (id) {
       const auction = allAuctions.find(candidate => candidate.id === id);
-      if (auction?.league) {
-        setSelectedLeagueId(auction.league);
+      const targetLeagueId = leagueId ?? auction?.league ?? null;
+      if (targetLeagueId) {
+        setSelectedLeagueId(targetLeagueId);
       } else if (process.env.NODE_ENV !== 'production') {
         console.assert(auction, `Cannot select unknown auction ${id}`);
       }

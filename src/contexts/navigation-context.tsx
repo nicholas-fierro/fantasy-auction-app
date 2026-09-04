@@ -18,7 +18,7 @@ interface NavigationContextType {
   returnToDashboard: () => void;
   selectLeague: (leagueId: string) => void;
   returnToLeagueLanding: () => void;
-  enterDraftRoom: (auctionId: string) => void;
+  enterDraftRoom: (auctionId: string, leagueId?: string | null) => void;
   draftMode: DraftMode;
   setDraftMode: (mode: DraftMode) => void;
   isSnakeMode: boolean;
@@ -80,16 +80,17 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     setCurrentView('players');
   }, [forgetSelectedAuctionId]);
 
-  const enterDraftRoom = useCallback((auctionId: string) => {
+  const enterDraftRoom = useCallback((auctionId: string, leagueId?: string | null) => {
     const auction = auctions.find(candidate => candidate.id === auctionId);
-    if (!auction?.league) {
+    const targetLeagueId = leagueId ?? auction?.league ?? null;
+    if (!targetLeagueId) {
       if (process.env.NODE_ENV !== 'production') {
         throw new Error(`Cannot enter auction ${auctionId} without a selected league`);
       }
       return;
     }
 
-    setSelectedAuctionId(auctionId);
+    setSelectedAuctionId(auctionId, targetLeagueId);
     setLandingStage('draft');
     setLandingOverride(false);
     setCurrentView('players');

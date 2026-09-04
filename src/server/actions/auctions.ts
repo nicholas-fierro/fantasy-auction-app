@@ -11,6 +11,8 @@ const ACTIVE_AUCTION_ERRORS = {
   mock: 'Complete or delete the active mock draft before starting a new auction',
 } as const;
 
+class AuctionValidationError extends Error {}
+
 function mapAuctionRecord(record: RecordModel): Auction {
   return {
     id: record.id,
@@ -40,26 +42,31 @@ async function resolveLeagueId(
   pb: Awaited<ReturnType<typeof requireAuth>>['pb'],
   userId: string,
   input: CreateAuctionInput
-): Promise<string | null> {
-  // Link the auction to the creator's league. The API rules require
-  // league.commissioner = creator for official auctions; mocks work with or
-  // without a league. Multi-league users would need a league picker here —
-  // until then, first membership wins.
-  const memberships = await pb.collection('league_members').getList(1, 1, {
-    filter: pb.filter('user = {:userId}', { userId }),
-  });
-  const leagueId: string | null = memberships.items[0]?.league ?? null;
+): Promise<string> {
+  if (!input.leagueId) {
+    throw new AuctionValidationError('Select a league before starting a draft');
+  }
 
-  // PocketBase repeats this commissioner check in the collection create rule.
+  const memberships = await pb.collection('league_members').getList(1, 1, {
+    filter: pb.filter('user = {:userId} && league = {:leagueId}', {
+      userId,
+      leagueId: input.leagueId,
+    }),
+  });
+  if (memberships.items.length === 0) {
+    throw new AuctionValidationError('You must be a member of the selected league');
+  }
+
   if (input.type === 'official') {
-    if (!leagueId) throw new Error('Official auctions require a league');
-    const league = await pb.collection('leagues').getOne(leagueId);
+    const league = await pb.collection('leagues').getOne(input.leagueId);
     if (league.commissioner !== userId) {
-      throw new Error('Only the league commissioner can start an official auction');
+      throw new AuctionValidationError(
+        'Only the selected league commissioner can start an official auction',
+      );
     }
   }
 
-  return leagueId;
+  return input.leagueId;
 }
 
 function auctionData(input: CreateAuctionInput, userId: string, leagueId: string | null, id?: string) {
@@ -137,6 +144,7 @@ export async function createAuction(input: CreateAuctionInput): Promise<Auction>
     if (isActiveAuctionConflict(error) || hasUniqueViolation(error)) {
       throw activeAuctionConflict(input.type);
     }
+    if (error instanceof AuctionValidationError) throw error;
     throw new Error('Failed to create auction');
   }
 }
@@ -159,6 +167,9 @@ export async function replaceAuction(
     }
     if (activeAuction.type !== input.type) {
       throw new Error('Replacement auction type must match the active auction type');
+    }
+    if (activeAuction.league !== input.leagueId) {
+      throw new AuctionValidationError('Replacement auction must stay in the same league');
     }
 
     const leagueId = await resolveLeagueId(pb, userId, input);
@@ -194,6 +205,7 @@ export async function replaceAuction(
   } catch (error) {
     console.error('Error replacing auction:', error);
     if (hasUniqueViolation(error)) throw activeAuctionConflict(input.type);
+    if (error instanceof AuctionValidationError) throw error;
     throw new Error('Failed to replace auction');
   }
 }
