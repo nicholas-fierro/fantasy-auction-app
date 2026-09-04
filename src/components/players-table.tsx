@@ -45,11 +45,17 @@ import { TierCliffAlerts } from '@/components/tier-cliff-alerts';
 import { InjuryBadge } from '@/components/injury-badge';
 import { usePlayerInjuries } from '@/hooks/use-player-injuries';
 import type { PlayerInjury } from '@/lib/sleeper-injuries';
+import { useProjectedPickLines } from '@/hooks/use-projected-pick-lines';
+import type { ProjectedTeamPick } from '@/lib/snake-pick-projection';
 
 // Every column stays in the DOM on mobile — the low-value ones are only
 // display:none via `max-md:hidden`, so colSpan stays 13 at every width.
 const COLUMN_COUNT = 13;
 const ROW_HEIGHT_ESTIMATE = 53;
+
+type TableRowItem =
+  | { kind: 'player'; player: Player; index: number }
+  | { kind: 'line'; pick: ProjectedTeamPick };
 
 export function PlayersTable() {
   const [updatingPlayerId, setUpdatingPlayerId] = useState<string | null>(null);
@@ -185,6 +191,23 @@ export function PlayersTable() {
     }
   }, [mutateAddWatchlist, mutateRemoveWatchlist]);
 
+  // Sleeper-style "your next pick" dividers, one per remaining snake turn.
+  const isFiltered = deferredSearchTerm.length > 0 || selectedPositions.size > 0;
+  const pickLines = useProjectedPickLines(filteredPlayers, draftedPlayerIds, isFiltered);
+
+  // Dividers are virtualized alongside the players rather than injected around
+  // them, so each one is measured like any other row and the scroll offsets
+  // stay honest.
+  const rows = useMemo(() => {
+    const out: TableRowItem[] = [];
+    filteredPlayers.forEach((player, index) => {
+      const line = pickLines.get(index);
+      if (line) out.push({ kind: 'line', pick: line });
+      out.push({ kind: 'player', player, index });
+    });
+    return out;
+  }, [filteredPlayers, pickLines]);
+
   // Virtualization: the scroll container is the div rendered by the shadcn
   // Table component (exposed via containerRef). Rows are padded with two
   // spacer <tr>s (before/after the visible window) instead of translating
@@ -192,11 +215,14 @@ export function PlayersTable() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const rowVirtualizer = useVirtualizer({
-    count: filteredPlayers.length,
+    count: rows.length,
     getScrollElement: () => scrollContainerRef.current,
     estimateSize: () => ROW_HEIGHT_ESTIMATE,
     overscan: 10,
-    getItemKey: (index) => filteredPlayers[index].id,
+    getItemKey: (index) => {
+      const row = rows[index];
+      return row.kind === 'player' ? row.player.id : `line-${row.pick.pickOrder}`;
+    },
   });
 
   const virtualRows = rowVirtualizer.getVirtualItems();
@@ -361,7 +387,18 @@ export function PlayersTable() {
                   </tr>
                 )}
                 {virtualRows.map((virtualRow) => {
-                  const player = filteredPlayers[virtualRow.index];
+                  const row = rows[virtualRow.index];
+                  if (row.kind === 'line') {
+                    return (
+                      <ProjectedPickRow
+                        key={`line-${row.pick.pickOrder}`}
+                        ref={rowVirtualizer.measureElement}
+                        dataIndex={virtualRow.index}
+                        pick={row.pick}
+                      />
+                    );
+                  }
+                  const player = row.player;
                   const watchlistItemId = watchlistItemIdByPlayerId.get(player.id);
                   return (
                     <PlayerRow
@@ -405,6 +442,45 @@ export function PlayersTable() {
     </div>
   );
 }
+
+// A full-width marker where the board is projected to be at one of the user's
+// upcoming turns. Players above the topmost line are the ones expected to be
+// gone; the block between two lines is the realistic range for that pick.
+const ProjectedPickRow = React.forwardRef<
+  HTMLTableRowElement,
+  { pick: ProjectedTeamPick; dataIndex: number }
+>(function ProjectedPickRow({ pick, dataIndex }, ref) {
+  const onTheClock = pick.picksAway === 0;
+  const label = `${pick.round}.${String(pick.pickInRound).padStart(2, '0')}`;
+  return (
+    <TableRow
+      ref={ref}
+      data-index={dataIndex}
+      className="hover:bg-transparent border-0"
+    >
+      <TableCell colSpan={COLUMN_COUNT} className="p-0">
+        <div
+          className={cn(
+            'flex items-center gap-2 border-y-2 border-dashed px-2 py-1 text-[11px] font-semibold uppercase tracking-wide',
+            onTheClock
+              ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+              : 'border-blue-400 bg-blue-50/70 text-blue-700 dark:border-blue-700 dark:bg-blue-950/30 dark:text-blue-300',
+          )}
+        >
+          <span>{onTheClock ? 'Your pick' : 'Your next pick'}</span>
+          <span className="font-mono normal-case">{label}</span>
+          <span className="font-normal normal-case tracking-normal opacity-80">
+            {onTheClock
+              ? "you're on the clock"
+              : `${pick.picksAway} ${pick.picksAway === 1 ? 'pick' : 'picks'} away`}
+          </span>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+});
+
+ProjectedPickRow.displayName = 'ProjectedPickRow';
 
 interface PlayerRowProps {
   player: Player;
