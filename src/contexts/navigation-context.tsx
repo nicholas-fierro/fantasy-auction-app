@@ -2,9 +2,11 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useMemo, ReactNode } from 'react';
 import { useAuction } from '@/contexts/auction-context';
+import { useLeagueContext } from '@/contexts/league-context';
 
 export type ViewType = 'players' | 'fantasy-teams' | 'draft-board' | 'analysis' | 'settings' | 'draft-history';
 export type DraftMode = 'auction' | 'snake';
+export type LandingStage = 'league' | 'draft';
 export type FilterPosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DST' | 'Flex';
 
 interface NavigationContextType {
@@ -12,9 +14,10 @@ interface NavigationContextType {
   setCurrentView: (view: ViewType) => void;
   landingOverride: boolean;
   setLandingOverride: (show: boolean) => void;
-  // The two whole-app transitions, in one place so every entry point moves the
-  // same three pieces of state in the same order.
+  landingStage: LandingStage;
   returnToDashboard: () => void;
+  selectLeague: (leagueId: string) => void;
+  returnToLeagueLanding: () => void;
   enterDraftRoom: (auctionId: string) => void;
   draftMode: DraftMode;
   setDraftMode: (mode: DraftMode) => void;
@@ -35,19 +38,66 @@ const NavigationContext = createContext<NavigationContextType | undefined>(undef
 export function NavigationProvider({ children }: { children: ReactNode }) {
   const [currentView, setCurrentView] = useState<ViewType>('players');
   const [landingOverride, setLandingOverride] = useState(false);
-  const { setSelectedAuctionId } = useAuction();
+  const [landingStage, setLandingStage] = useState<LandingStage>('draft');
+  const landingInitialized = useRef(false);
+  const {
+    auctions,
+    setSelectedAuctionId,
+    forgetSelectedAuctionId,
+  } = useAuction();
+  const {
+    memberships,
+    selectedLeagueId,
+    setSelectedLeagueId,
+    isLoading: leagueLoading,
+  } = useLeagueContext();
+
+  useEffect(() => {
+    if (leagueLoading || landingInitialized.current) return;
+    setLandingStage(memberships.length > 1 && !selectedLeagueId ? 'league' : 'draft');
+    landingInitialized.current = true;
+  }, [leagueLoading, memberships.length, selectedLeagueId]);
 
   const returnToDashboard = useCallback(() => {
     setSelectedAuctionId(null);
+    setLandingStage('draft');
     setLandingOverride(true);
     setCurrentView('players');
   }, [setSelectedAuctionId]);
 
-  const enterDraftRoom = useCallback((auctionId: string) => {
-    setSelectedAuctionId(auctionId);
+  const selectLeague = useCallback((leagueId: string) => {
+    forgetSelectedAuctionId();
+    setSelectedLeagueId(leagueId);
+    setLandingStage('draft');
+    setLandingOverride(true);
+    setCurrentView('players');
+  }, [forgetSelectedAuctionId, setSelectedLeagueId]);
+
+  const returnToLeagueLanding = useCallback(() => {
+    forgetSelectedAuctionId();
+    setLandingStage('league');
     setLandingOverride(false);
     setCurrentView('players');
-  }, [setSelectedAuctionId]);
+  }, [forgetSelectedAuctionId]);
+
+  const enterDraftRoom = useCallback((auctionId: string) => {
+    const auction = auctions.find(candidate => candidate.id === auctionId);
+    if (!auction?.league) {
+      if (process.env.NODE_ENV !== 'production') {
+        throw new Error(`Cannot enter auction ${auctionId} without a selected league`);
+      }
+      return;
+    }
+
+    setSelectedAuctionId(auctionId);
+    setLandingStage('draft');
+    setLandingOverride(false);
+    setCurrentView('players');
+  }, [auctions, setSelectedAuctionId]);
+
+  const effectiveLandingStage = !landingInitialized.current && !leagueLoading
+    ? memberships.length > 1 && !selectedLeagueId ? 'league' : 'draft'
+    : landingStage;
 
   const [draftMode, setDraftMode] = useState<DraftMode>('auction');
   const [showDraftedPlayers, setShowDraftedPlayers] = useState<boolean>(true);
@@ -62,7 +112,10 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     setCurrentView,
     landingOverride,
     setLandingOverride,
+    landingStage: effectiveLandingStage,
     returnToDashboard,
+    selectLeague,
+    returnToLeagueLanding,
     enterDraftRoom,
     draftMode,
     setDraftMode,
@@ -75,7 +128,21 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     setShowWatchlist,
     completedDraftModalOpen,
     setCompletedDraftModalOpen,
-  }), [currentView, landingOverride, returnToDashboard, enterDraftRoom, draftMode, isSnakeMode, showDraftedPlayers, selectedPositions, showWatchlist, completedDraftModalOpen]);
+  }), [
+    currentView,
+    landingOverride,
+    effectiveLandingStage,
+    returnToDashboard,
+    selectLeague,
+    returnToLeagueLanding,
+    enterDraftRoom,
+    draftMode,
+    isSnakeMode,
+    showDraftedPlayers,
+    selectedPositions,
+    showWatchlist,
+    completedDraftModalOpen,
+  ]);
 
   return (
     <NavigationContext.Provider value={value}>
