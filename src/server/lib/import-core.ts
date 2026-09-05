@@ -24,6 +24,8 @@ import {
 import type {
   ImportReport,
   ImportInput,
+  RankingImportCoreInput,
+  RankingScoringFormat,
   CalculateProjectedResult,
 } from '@/server/types/import';
 
@@ -250,24 +252,29 @@ export function registerIdentity(index: PlayerIndex, record: RecordModel): void 
 // `ecrData`), and both are displayed in the players table — `ecr_vs_adp` also
 // feeds src/lib/draft-comparison.ts. A column that is present but has an empty
 // cell still writes 0, which is a real value.
-export function rankingFields(row: CsvRow, columns: Set<string>): CsvRow {
+export function rankingFields(
+  row: CsvRow,
+  columns: Set<string>,
+  scoringFormat: RankingScoringFormat = 'half'
+): CsvRow {
   const fields: CsvRow = {};
   const has = (column: string) => columns.has(column);
+  const rankingField = (field: string) => scoringFormat === 'ppr' ? `${field}_ppr` : field;
 
   if (has('TEAM')) fields.team = getField(row, ['TEAM']);
-  if (has('POS')) fields.position_rank = parsePos(getField(row, ['POS'])).positionRank;
-  if (has('RK')) fields.rank = toInt(row['RK']);
-  if (has('TIERS')) fields.tier = toInt(row['TIERS']);
+  if (has('POS')) fields[rankingField('position_rank')] = parsePos(getField(row, ['POS'])).positionRank;
+  if (has('RK')) fields[rankingField('rank')] = toInt(row['RK']);
+  if (has('TIERS')) fields[rankingField('tier')] = toInt(row['TIERS']);
   if (has('BYE WEEK')) fields.bye_week = toInt(row['BYE WEEK']);
   if (has('SOS SEASON')) fields.sos = parseSos(row['SOS SEASON']);
-  if (has('ECR VS. ADP')) fields.ecr_vs_adp = toInt(row['ECR VS. ADP']);
+  if (has('ECR VS. ADP')) fields[rankingField('ecr_vs_adp')] = toInt(row['ECR VS. ADP']);
 
   return fields;
 }
 
 export async function importRankingsCore(
   pb: PocketBase,
-  { year, csvText }: ImportInput
+  { year, csvText, scoringFormat }: RankingImportCoreInput
 ): Promise<ImportReport> {
   const rows = parseCsv(csvText);
   // Papa gives every row all header keys, so the first row's keys are the
@@ -290,7 +297,7 @@ export async function importRankingsCore(
     const posRaw = getField(row, ['POS']);
     const { basePosition } = parsePos(posRaw);
 
-    const fields = rankingFields(row, columns);
+    const fields = rankingFields(row, columns, scoringFormat);
 
     const match = matchPlayer(index, name, basePosition, team);
     if (match.player === null && match.ambiguous) {

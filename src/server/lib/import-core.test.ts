@@ -43,6 +43,37 @@ describe('rankingFields', () => {
     });
   });
 
+  it('writes a full-PPR board without touching half-PPR ranking columns', () => {
+    const fields = rankingFields(
+      {
+        'PLAYER NAME': "Ja'Marr Chase",
+        TEAM: 'CIN',
+        POS: 'WR1',
+        RK: '1',
+        TIERS: '1',
+        'BYE WEEK': '10',
+        'SOS SEASON': '3 out of 5 stars',
+        'ECR VS. ADP': '-2',
+      },
+      fullColumns,
+      'ppr'
+    );
+
+    expect(fields).toEqual({
+      team: 'CIN',
+      position_rank_ppr: 1,
+      rank_ppr: 1,
+      tier_ppr: 1,
+      bye_week: 10,
+      sos: 3,
+      ecr_vs_adp_ppr: -2,
+    });
+    expect(fields).not.toHaveProperty('position_rank');
+    expect(fields).not.toHaveProperty('rank');
+    expect(fields).not.toHaveProperty('tier');
+    expect(fields).not.toHaveProperty('ecr_vs_adp');
+  });
+
   it('omits columns the CSV does not have, so an update cannot blank them', () => {
     const columns = new Set(['PLAYER NAME', 'TEAM', 'POS', 'RK', 'TIERS', 'BYE WEEK']);
     const fields = rankingFields(

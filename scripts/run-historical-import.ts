@@ -213,7 +213,7 @@ async function main(): Promise<void> {
   for (const { year, path } of jobs) {
     try {
       const csvText = readFileSync(path, 'utf-8');
-      const report = await importRankingsCore(pb, { year, csvText });
+      const report = await importRankingsCore(pb, { year, csvText, scoringFormat: 'half' });
       printReport(year, report);
       summary.push({
         year,

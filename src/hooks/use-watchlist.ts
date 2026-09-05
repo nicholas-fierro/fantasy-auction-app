@@ -6,13 +6,16 @@ import { mapWatchlistRecord, ensureSeasonMap } from '@/lib/pb-mappers';
 import { Watchlist, WatchlistWithDetails, UpdateWatchlistOrderData } from '@/server/types/watchlist';
 import { Player } from '@/server/types/player';
 import { useAuction } from '@/contexts/auction-context';
+import { useLeague } from '@/hooks/use-league';
 
 export function useWatchlist() {
   const queryClient = useQueryClient();
   const { selectedYear } = useAuction();
+  const { settings } = useLeague();
+  const scoringFormat = settings.scoringFormat;
 
   return useQuery<WatchlistWithDetails[], Error>({
-    queryKey: ['watchlist', selectedYear],
+    queryKey: ['watchlist', selectedYear, scoringFormat],
     queryFn: async () => {
       // Rows are auth-scoped by the `watchlist` API rule (user = @request.auth.id).
       // The watchlist query and the shared season-map run in parallel; the season
@@ -25,7 +28,9 @@ export function useWatchlist() {
         }),
         ensureSeasonMap(queryClient, selectedYear),
       ]);
-      return records.map(record => mapWatchlistRecord(record, seasonByPlayerId.get(record.player_id)));
+      return records.map(record =>
+        mapWatchlistRecord(record, seasonByPlayerId.get(record.player_id), scoringFormat)
+      );
     },
   });
 }
@@ -33,6 +38,8 @@ export function useWatchlist() {
 export function useAddToWatchlist() {
   const queryClient = useQueryClient();
   const { selectedYear } = useAuction();
+  const { settings } = useLeague();
+  const scoringFormat = settings.scoringFormat;
 
   return useMutation({
     mutationFn: async (playerId: string): Promise<Watchlist> => {
@@ -63,14 +70,18 @@ export function useAddToWatchlist() {
       };
     },
     onMutate: async (playerId: string) => {
-      await queryClient.cancelQueries({ queryKey: ['watchlist', selectedYear] });
+      await queryClient.cancelQueries({ queryKey: ['watchlist', selectedYear, scoringFormat] });
 
-      const previousWatchlist = queryClient.getQueryData<WatchlistWithDetails[]>(['watchlist', selectedYear]);
+      const previousWatchlist = queryClient.getQueryData<WatchlistWithDetails[]>(['watchlist', selectedYear, scoringFormat]);
 
       // Look up the player's hydrated details so we can render an optimistic
       // row immediately; if it's not cached, skip the optimistic insert and
       // fall back to invalidation on success.
-      const players = queryClient.getQueryData<Player[]>(['players', selectedYear]);
+      const players = queryClient.getQueryData<Player[]>([
+        'players',
+        selectedYear,
+        scoringFormat,
+      ]);
       const player = players?.find(p => p.id === playerId);
 
       if (!player) {
@@ -92,7 +103,7 @@ export function useAddToWatchlist() {
         player,
       };
 
-      queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', selectedYear], (oldData) =>
+      queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', selectedYear, scoringFormat], (oldData) =>
         oldData ? [...oldData, optimisticEntry] : [optimisticEntry]
       );
 
@@ -100,7 +111,7 @@ export function useAddToWatchlist() {
     },
     onError: (_err, _playerId, context) => {
       if (context?.previousWatchlist !== undefined) {
-        queryClient.setQueryData(['watchlist', selectedYear], context.previousWatchlist);
+        queryClient.setQueryData(['watchlist', selectedYear, scoringFormat], context.previousWatchlist);
       }
     },
     onSuccess: (newWatchlistRecord, _playerId, context) => {
@@ -115,7 +126,7 @@ export function useAddToWatchlist() {
       // The realtime subscription's create event can beat the HTTP response, in
       // which case the real record is already in the cache — then just drop the
       // optimistic row instead of swapping ids into a duplicate.
-      queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', selectedYear], (oldData) => {
+      queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', selectedYear, scoringFormat], (oldData) => {
         if (!oldData) return oldData;
         if (oldData.some(item => item.id === newWatchlistRecord.id)) {
           return oldData.filter(item => item.id !== context.optimisticId);
@@ -133,6 +144,8 @@ export function useAddToWatchlist() {
 export function useRemoveFromWatchlist() {
   const queryClient = useQueryClient();
   const { selectedYear } = useAuction();
+  const { settings } = useLeague();
+  const scoringFormat = settings.scoringFormat;
 
   return useMutation({
     mutationFn: async (watchlistId: string) => {
@@ -140,11 +153,11 @@ export function useRemoveFromWatchlist() {
       await pb.collection('watchlist').delete(watchlistId);
     },
     onMutate: async (watchlistId: string) => {
-      await queryClient.cancelQueries({ queryKey: ['watchlist', selectedYear] });
+      await queryClient.cancelQueries({ queryKey: ['watchlist', selectedYear, scoringFormat] });
 
-      const previousWatchlist = queryClient.getQueryData<WatchlistWithDetails[]>(['watchlist', selectedYear]);
+      const previousWatchlist = queryClient.getQueryData<WatchlistWithDetails[]>(['watchlist', selectedYear, scoringFormat]);
 
-      queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', selectedYear], (oldData) =>
+      queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', selectedYear, scoringFormat], (oldData) =>
         oldData ? oldData.filter(item => item.id !== watchlistId) : oldData
       );
 
@@ -152,7 +165,7 @@ export function useRemoveFromWatchlist() {
     },
     onError: (_err, _watchlistId, context) => {
       if (context?.previousWatchlist !== undefined) {
-        queryClient.setQueryData(['watchlist', selectedYear], context.previousWatchlist);
+        queryClient.setQueryData(['watchlist', selectedYear, scoringFormat], context.previousWatchlist);
       }
     },
   });

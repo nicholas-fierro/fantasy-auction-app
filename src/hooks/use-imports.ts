@@ -28,10 +28,12 @@ function useInvalidateYear() {
   };
 }
 
-function useImportMutation(action: (input: ImportInput) => Promise<ImportReport>) {
+function useImportMutation<TInput extends ImportInput>(
+  action: (input: TInput) => Promise<ImportReport>
+) {
   const invalidateYear = useInvalidateYear();
   return useMutation({
-    mutationFn: (input: ImportInput) => action(input),
+    mutationFn: (input: TInput) => action(input),
     onSuccess: (_report, input) => invalidateYear(input.year),
   });
 }

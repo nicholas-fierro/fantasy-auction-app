@@ -11,6 +11,7 @@ import {
   seasonMapFromRows,
 } from '@/lib/pb-mappers';
 import { useAuction } from '@/contexts/auction-context';
+import { useLeague } from '@/hooks/use-league';
 import {
   auctionNominationQueryKey,
   auctionNominationHistoryQueryKey,
@@ -34,6 +35,8 @@ type RealtimeEvent = { action: string; record: RecordModel };
 export function RealtimeSync() {
   const queryClient = useQueryClient();
   const { selectedAuction, selectedAuctionId, selectedYear } = useAuction();
+  const { settings } = useLeague();
+  const scoringFormat = settings.scoringFormat;
 
   // --- realtime connection recovery (3b) ---
   // The SDK auto-reconnects and re-submits subscriptions on a dropped SSE
@@ -87,18 +90,22 @@ export function RealtimeSync() {
       const id = e.record.id;
 
       if (e.action === 'delete') {
-        queryClient.setQueryData<DraftPickWithDetails[]>(['draft-picks', auctionId], (old) =>
+        queryClient.setQueryData<DraftPickWithDetails[]>(['draft-picks', auctionId, scoringFormat], (old) =>
           old ? old.filter((p) => p.id !== id) : old
         );
         queryClient.setQueriesData<DraftPickWithDetails[]>(
-          { queryKey: ['draft-picks', auctionId, 'team'] },
+          { queryKey: ['draft-picks', auctionId, scoringFormat, 'team'] },
           (old) => (old ? old.filter((p) => p.id !== id) : old)
         );
         queryClient.removeQueries({ queryKey: ['draft-pick', id] });
         return;
       }
 
-      const mapped = mapPickRecord(e.record, seasonForPlayer(e.record.player_id));
+      const mapped = mapPickRecord(
+        e.record,
+        seasonForPlayer(e.record.player_id),
+        scoringFormat
+      );
 
       const upsert = (old: DraftPickWithDetails[] | undefined): DraftPickWithDetails[] => {
         if (!old) return [mapped];
@@ -111,12 +118,12 @@ export function RealtimeSync() {
         return [...old, mapped].sort((a, b) => a.pick_order - b.pick_order);
       };
 
-      queryClient.setQueryData<DraftPickWithDetails[]>(['draft-picks', auctionId], upsert);
+      queryClient.setQueryData<DraftPickWithDetails[]>(['draft-picks', auctionId, scoringFormat], upsert);
       queryClient.setQueryData<DraftPickWithDetails[]>(
-        ['draft-picks', auctionId, 'team', mapped.fantasy_team_id],
+        ['draft-picks', auctionId, scoringFormat, 'team', mapped.fantasy_team_id],
         upsert
       );
-      queryClient.setQueryData(['draft-pick', mapped.id], mapped);
+      queryClient.setQueryData(['draft-pick', mapped.id, scoringFormat], mapped);
     };
 
     pb.collection('draft_picks')
@@ -132,7 +139,7 @@ export function RealtimeSync() {
     return () => {
       unsub?.();
     };
-  }, [selectedAuctionId, selectedYear, queryClient]);
+  }, [selectedAuctionId, selectedYear, scoringFormat, queryClient]);
 
   // --- auctions (lifecycle of the selected draft) ---
   // A commissioner completing the official draft is invisible to every other
@@ -215,14 +222,18 @@ export function RealtimeSync() {
       const id = e.record.id;
 
       if (e.action === 'delete') {
-        queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', year], (old) =>
+        queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', year, scoringFormat], (old) =>
           old ? old.filter((w) => w.id !== id) : old
         );
         return;
       }
 
-      const mapped = mapWatchlistRecord(e.record, seasonForPlayer(e.record.player_id));
-      queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', year], (old) => {
+      const mapped = mapWatchlistRecord(
+        e.record,
+        seasonForPlayer(e.record.player_id),
+        scoringFormat
+      );
+      queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', year, scoringFormat], (old) => {
         if (!old) return [mapped];
         // A create event for our own optimistic add supersedes the placeholder
         // row (id `optimistic-<playerId>`, from useAddToWatchlist) — drop it so
@@ -251,7 +262,7 @@ export function RealtimeSync() {
     return () => {
       unsub?.();
     };
-  }, [selectedYear, queryClient]);
+  }, [selectedYear, scoringFormat, queryClient]);
 
   return null;
 }

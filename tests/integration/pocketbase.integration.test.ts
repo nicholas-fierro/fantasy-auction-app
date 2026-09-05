@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import PocketBase, { ClientResponseError, type CollectionModel, type RecordModel } from 'pocketbase';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { importRankingsCore } from '@/server/lib/import-core';
 
 function env(name: string): string {
   const value = process.env[name];
@@ -128,6 +129,9 @@ const expectedRules: Record<string, Partial<Record<'listRule' | 'viewRule' | 'cr
     createRule: '@request.auth.id != "" && user = @request.auth.id',
   },
   fantasy_teams: {
+    listRule: '@request.auth.id != "" && (league.commissioner = @request.auth.id || league.league_members_via_league.user ?= @request.auth.id)',
+    viewRule: '@request.auth.id != "" && (league.commissioner = @request.auth.id || league.league_members_via_league.user ?= @request.auth.id)',
+    createRule: '@request.auth.id != "" && league.commissioner = @request.auth.id && @collection.leagues.commissioner ?= @request.auth.id',
     updateRule: 'league.commissioner = @request.auth.id',
   },
   players: {
@@ -179,6 +183,9 @@ describe('empty-instance migrations', () => {
       }
     }
     expect(byName.get('players')!.fields.map((field: Record<string, any>) => field.name)).toContain('gsis_id');
+    expect(byName.get('player_seasons')!.fields.map((field: Record<string, any>) => field.name)).toEqual(
+      expect.arrayContaining(['rank_ppr', 'position_rank_ppr', 'tier_ppr', 'ecr_vs_adp_ppr']),
+    );
     expect(byName.get('player_game_logs')!.fields.map((field: Record<string, any>) => field.name)).toEqual(
       expect.arrayContaining([
         'player_id', 'season', 'week', 'season_type', 'game_id', 'team', 'opponent', 'stats',
@@ -323,6 +330,46 @@ async function expectApiFailure(promise: Promise<unknown>, statuses = [400, 403,
     expect(statuses).toContain((error as ClientResponseError).status);
   }
 }
+
+describe('player season ranking boards', () => {
+  it('imports full-PPR rankings without changing half-PPR ranking fields', async () => {
+    const year = 2027;
+    const originalHalfBoard = {
+      position_rank: 8,
+      rank: 42,
+      tier: 5,
+      ecr_vs_adp: -4,
+    };
+    const season = await admin.collection('player_seasons').create({
+      player_id: fixture.players[0].id,
+      year,
+      team: 'OLD',
+      bye_week: 9,
+      sos: 2,
+      ...originalHalfBoard,
+    });
+
+    const csvText = [
+      'RK,TIERS,PLAYER NAME,TEAM,POS,BYE WEEK,SOS SEASON,ECR VS. ADP',
+      '3,1,Integration Player 1,TEST,RB2,6,5 out of 5 stars,+7',
+    ].join('\n');
+    await importRankingsCore(admin, { year, csvText, scoringFormat: 'ppr' });
+
+    const updated = await admin.collection('player_seasons').getOne(season.id);
+    expect(updated).toMatchObject({
+      ...originalHalfBoard,
+      position_rank_ppr: 2,
+      rank_ppr: 3,
+      tier_ppr: 1,
+      ecr_vs_adp_ppr: 7,
+      team: 'TEST',
+      bye_week: 6,
+      sos: 5,
+    });
+
+    await admin.collection('player_seasons').delete(season.id);
+  });
+});
 
 describe('player game logs', () => {
   it('allows authenticated reads while keeping writes superuser-only', async () => {
@@ -530,6 +577,48 @@ describe('authorization rules (AD-2 and AD-18)', () => {
     await expectApiFailure(clientB.collection('watchlist').getOne(watch.id), [404]);
     await expectApiFailure(clientB.collection('watchlist').create({ user: userA.id, player_id: players[5].id }), [400, 403]);
     expect((await clientB.collection('watchlist').create({ user: userB.id, player_id: players[5].id })).user).toBe(userB.id);
+  });
+
+  it('scopes fantasy teams to league commissioners and members', async () => {
+    const { clientA, clientB, clientC, userC, league, teamA } = fixture;
+    const otherLeague = await admin.collection('leagues').create({
+      name: 'Other Integration League',
+      commissioner: userC.id,
+      settings: { paidAuctionSlots: 7 },
+    });
+    const otherTeam = await admin.collection('fantasy_teams').create({
+      name: 'Other Team',
+      league: otherLeague.id,
+    });
+
+    expect(await clientA.collection('fantasy_teams').getFullList({
+      filter: clientA.filter('league = {:league}', { league: league.id }),
+    })).toHaveLength(2);
+    expect(await clientB.collection('fantasy_teams').getOne(teamA.id)).toMatchObject({
+      league: league.id,
+    });
+    expect((await clientC.collection('fantasy_teams').getOne(otherTeam.id)).id).toBe(otherTeam.id);
+    await expectApiFailure(clientC.collection('fantasy_teams').getOne(teamA.id), [404]);
+
+    const guest = new PocketBase(integrationUrl);
+    await expectApiFailure(guest.collection('fantasy_teams').getOne(teamA.id), [404]);
+    expect(await guest.collection('fantasy_teams').getFullList()).toHaveLength(0);
+
+    const created = await clientA.collection('fantasy_teams').create({
+      name: 'Commissioner Team',
+      league: league.id,
+    });
+    await expectApiFailure(clientB.collection('fantasy_teams').create({
+      name: 'Member Team',
+      league: league.id,
+    }), [400, 403]);
+    await expectApiFailure(clientA.collection('fantasy_teams').create({
+      name: 'Unscoped Team',
+    }), [400, 403]);
+
+    await admin.collection('fantasy_teams').delete(created.id);
+    await admin.collection('fantasy_teams').delete(otherTeam.id);
+    await admin.collection('leagues').delete(otherLeague.id);
   });
 
   it('shares external boards with members only, and never lets a client mark one', async () => {

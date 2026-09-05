@@ -677,3 +677,27 @@ The `team_profiles` collection and its rows still exist in PocketBase but nothin
 reads or writes them; the profiles view is a read-only visualization. Dropping the
 override layer removed `applyOverrides`, `TeamProfileOverrides`, and the two
 override hooks. If manual tuning is ever wanted again, the collection is still there.
+
+## AD-28: Full-PPR rankings use temporary parallel season columns
+
+**Decision.** Keep one `player_seasons` row per player and year. Existing `rank`,
+`position_rank`, `tier`, and `ecr_vs_adp` remain the half-PPR board; parallel
+nullable `*_ppr` columns hold the full-PPR board. Team, bye week, strength of
+schedule, and rookie status remain shared facts. Reads flatten the column set
+matching the selected league's scoring format, and rankings imports require an
+explicit Half-PPR or Full-PPR destination that matches the selected league.
+
+**Why.** Changing the uniqueness key or introducing a second ranking row would
+re-key every board, history, watchlist, draft-pick hydration, value-model, and
+import path during draft preparation. Parallel columns add the needed full-PPR
+board without making any existing query return duplicate or ambiguous season
+rows.
+
+**Consequences.** This shape is explicitly temporary. Before the 2027 rankings
+import, split season facts, format rankings, and league values into
+`player_seasons` (player + year), `player_season_rankings` (player + year +
+format), and `league_player_values` (league + player + year). Until then,
+`projected_auction_value` remains on `player_seasons` and is valid for at most one
+auction-or-hybrid league per `(year, scoring format)`; snake leagues neither
+write nor read it. The migration keeps the `(player_id, year)` unique index
+unchanged.
