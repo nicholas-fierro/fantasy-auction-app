@@ -7,6 +7,7 @@ import { WatchlistWithDetails } from '@/server/types/watchlist';
 import { Auction } from '@/server/types/auction';
 import { PlayerGameLog } from '@/server/types/player-game-log';
 import type { GameLogStats, ScoringFormat } from '@/lib/fantasy-scoring';
+import { seasonRankingValue } from '@/lib/season-rankings';
 
 // Client-safe mapping logic shared by the direct-SDK read hooks. Ported verbatim
 // from the (deleted) server actions so the returned shapes are byte-for-byte
@@ -16,23 +17,6 @@ import type { GameLogStats, ScoringFormat } from '@/lib/fantasy-scoring';
 // Flatten a `player_seasons` record (with its `player_id` relation expanded) into
 // the app-facing Player shape: identity from the expanded players record, stats
 // from the season row.
-type SeasonRankingField = 'position_rank' | 'ecr_vs_adp' | 'rank' | 'tier';
-
-export function seasonRankingFieldName(
-  field: SeasonRankingField,
-  scoringFormat: ScoringFormat
-): SeasonRankingField | `${SeasonRankingField}_ppr` {
-  return scoringFormat === 'ppr' ? `${field}_ppr` : field;
-}
-
-function seasonRankingValue(
-  record: RecordModel,
-  field: SeasonRankingField,
-  scoringFormat: ScoringFormat
-): number {
-  return Number(record[seasonRankingFieldName(field, scoringFormat)] ?? 0);
-}
-
 export function mapSeasonToPlayer(
   record: RecordModel,
   scoringFormat: ScoringFormat = 'half'

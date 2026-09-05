@@ -43,6 +43,21 @@ describe('rankingFields', () => {
     });
   });
 
+  it('writes standard rankings to the legacy ranking columns', () => {
+    const fields = rankingFields(
+      { POS: 'RB2', RK: '7', TIERS: '3', 'ECR VS. ADP': '+1' },
+      new Set(['POS', 'RK', 'TIERS', 'ECR VS. ADP']),
+      'std'
+    );
+
+    expect(fields).toEqual({
+      position_rank: 2,
+      rank: 7,
+      tier: 3,
+      ecr_vs_adp: 1,
+    });
+  });
+
   it('writes a full-PPR board without touching half-PPR ranking columns', () => {
     const fields = rankingFields(
       {

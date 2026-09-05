@@ -15,6 +15,7 @@ import Papa from 'papaparse';
 import type PocketBase from 'pocketbase';
 import type { RecordModel } from 'pocketbase';
 import { computeAuctionEstimates } from '@/lib/value-model';
+import { seasonRankingFieldName } from '@/lib/season-rankings';
 import {
   buildHistory,
   buildTargets,
@@ -259,15 +260,14 @@ export function rankingFields(
 ): CsvRow {
   const fields: CsvRow = {};
   const has = (column: string) => columns.has(column);
-  const rankingField = (field: string) => scoringFormat === 'ppr' ? `${field}_ppr` : field;
 
   if (has('TEAM')) fields.team = getField(row, ['TEAM']);
-  if (has('POS')) fields[rankingField('position_rank')] = parsePos(getField(row, ['POS'])).positionRank;
-  if (has('RK')) fields[rankingField('rank')] = toInt(row['RK']);
-  if (has('TIERS')) fields[rankingField('tier')] = toInt(row['TIERS']);
+  if (has('POS')) fields[seasonRankingFieldName('position_rank', scoringFormat)] = parsePos(getField(row, ['POS'])).positionRank;
+  if (has('RK')) fields[seasonRankingFieldName('rank', scoringFormat)] = toInt(row['RK']);
+  if (has('TIERS')) fields[seasonRankingFieldName('tier', scoringFormat)] = toInt(row['TIERS']);
   if (has('BYE WEEK')) fields.bye_week = toInt(row['BYE WEEK']);
   if (has('SOS SEASON')) fields.sos = parseSos(row['SOS SEASON']);
-  if (has('ECR VS. ADP')) fields[rankingField('ecr_vs_adp')] = toInt(row['ECR VS. ADP']);
+  if (has('ECR VS. ADP')) fields[seasonRankingFieldName('ecr_vs_adp', scoringFormat)] = toInt(row['ECR VS. ADP']);
 
   return fields;
 }
@@ -510,9 +510,10 @@ export async function importAuctionValuesCore(
 // 0, same as the CLI.
 export async function calculateProjectedValuesCore(
   pb: PocketBase,
-  year: number
+  year: number,
+  scoringFormat: RankingScoringFormat = 'half'
 ): Promise<CalculateProjectedResult> {
-  const data = await loadFromPocketBase(pb);
+  const data = await loadFromPocketBase(pb, scoringFormat);
   const history = buildHistory(data, year);
   const targets = buildTargets(data, year);
 

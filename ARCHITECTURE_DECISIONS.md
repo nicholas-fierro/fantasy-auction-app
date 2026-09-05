@@ -681,8 +681,9 @@ override hooks. If manual tuning is ever wanted again, the collection is still t
 ## AD-28: Full-PPR rankings use temporary parallel season columns
 
 **Decision.** Keep one `player_seasons` row per player and year. Existing `rank`,
-`position_rank`, `tier`, and `ecr_vs_adp` remain the half-PPR board; parallel
-nullable `*_ppr` columns hold the full-PPR board. Team, bye week, strength of
+`position_rank`, `tier`, and `ecr_vs_adp` remain the legacy board used by
+standard and half-PPR leagues; parallel nullable `*_ppr` columns hold the
+full-PPR board. Team, bye week, strength of
 schedule, and rookie status remain shared facts. Reads flatten the column set
 matching the selected league's scoring format, and rankings imports require an
 explicit Half-PPR or Full-PPR destination that matches the selected league.

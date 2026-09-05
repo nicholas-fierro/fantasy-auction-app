@@ -5,8 +5,8 @@ import {
   mapSeasonRecord,
   mapSeasonToPlayer,
   mapWatchlistRecord,
-  seasonRankingFieldName,
 } from '@/lib/pb-mappers';
+import { seasonRankingFieldName } from '@/lib/season-rankings';
 
 const season = {
   id: 'season-1',

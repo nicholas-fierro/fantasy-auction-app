@@ -2,11 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pb } from '@/lib/pb-client';
-import {
-  mapSeasonToPlayer,
-  mapSeasonRecord,
-  seasonRankingFieldName,
-} from '@/lib/pb-mappers';
+import { mapSeasonToPlayer, mapSeasonRecord } from '@/lib/pb-mappers';
+import { seasonRankingFieldName } from '@/lib/season-rankings';
 import { Player, PlayerSeason, UpdatePlayerAuctionValues } from '@/server/types/player';
 import { useAuction } from '@/contexts/auction-context';
 import { useLeague } from '@/hooks/use-league';

@@ -42,7 +42,7 @@ export interface ImportInput {
   csvText: string;
 }
 
-export type RankingScoringFormat = Extract<ScoringFormat, 'half' | 'ppr'>;
+export type RankingScoringFormat = ScoringFormat;
 
 export interface RankingImportCoreInput extends ImportInput {
   scoringFormat: RankingScoringFormat;
@@ -50,6 +50,12 @@ export interface RankingImportCoreInput extends ImportInput {
 
 export interface RankingImportInput extends RankingImportCoreInput {
   leagueId: string;
+}
+
+export interface CalculateProjectedValuesInput {
+  year: number;
+  leagueId: string;
+  scoringFormat: RankingScoringFormat;
 }
 
 // Result of matching app players to their external provider IDs

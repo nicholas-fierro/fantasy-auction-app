@@ -21,6 +21,8 @@
 import { readFileSync } from 'fs';
 import type PocketBase from 'pocketbase';
 import type { HistoryRow, ValueTarget } from '@/lib/value-model';
+import type { ScoringFormat } from '@/lib/fantasy-scoring';
+import { seasonRankingValue } from '@/lib/season-rankings';
 
 // Positions the league bids on. Only these are synthesized as $0 undrafted rows.
 const AUCTION_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE']);
@@ -85,7 +87,10 @@ export interface PricedPick {
 // Load everything the builders need from PocketBase. Mirrors the collection
 // filters the app uses (official auctions, priced picks) but leaves year
 // filtering to the builders so a single fetch serves history and targets.
-export async function loadFromPocketBase(pb: PocketBase): Promise<ValueData> {
+export async function loadFromPocketBase(
+  pb: PocketBase,
+  scoringFormat: ScoringFormat = 'half'
+): Promise<ValueData> {
   const auctionRecords = await pb.collection('auctions').getFullList({
     filter: pb.filter('type = "official" && year > 0'),
     requestKey: null,
@@ -118,8 +123,8 @@ export async function loadFromPocketBase(pb: PocketBase): Promise<ValueData> {
     id: s.id,
     player_id: String(s.player_id),
     year: Number(s.year),
-    rank: Number(s.rank ?? 0),
-    position_rank: Number(s.position_rank ?? 0),
+    rank: seasonRankingValue(s, 'rank', scoringFormat),
+    position_rank: seasonRankingValue(s, 'position_rank', scoringFormat),
     projected_auction_value: Number(s.projected_auction_value ?? 0),
   }));
 
@@ -133,7 +138,10 @@ export async function loadFromPocketBase(pb: PocketBase): Promise<ValueData> {
 
 // Load the same shape from an offline JSON dump. The dump's picks are already
 // filtered to official priced picks; numeric columns are numbers.
-export function loadFromDump(path: string): ValueData {
+export function loadFromDump(
+  path: string,
+  scoringFormat: ScoringFormat = 'half'
+): ValueData {
   const raw = JSON.parse(readFileSync(path, 'utf8')) as {
     auctions: RawAuction[];
     picks: RawPick[];
@@ -157,8 +165,8 @@ export function loadFromDump(path: string): ValueData {
       id: s.id,
       player_id: s.player_id,
       year: Number(s.year),
-      rank: Number(s.rank ?? 0),
-      position_rank: Number(s.position_rank ?? 0),
+      rank: seasonRankingValue(s, 'rank', scoringFormat),
+      position_rank: seasonRankingValue(s, 'position_rank', scoringFormat),
       projected_auction_value: Number(s.projected_auction_value ?? 0),
     })),
     players: new Map(raw.players.map((p) => [p.id, { id: p.id, name: p.name, position: p.position }])),

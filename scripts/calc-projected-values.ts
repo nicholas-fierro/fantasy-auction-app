@@ -12,6 +12,7 @@
 // Usage:
 //   PB_SUPERUSER_EMAIL=... PB_SUPERUSER_PASSWORD=... \
 //     npx tsx scripts/calc-projected-values.ts --year 2026 [--dry-run] [--top 40]
+//                                              [--scoring-format half]
 //                                              [--external-weight 0.5]
 //
 // Outside-league boards imported by scripts/import-external-auction.ts are
@@ -28,6 +29,7 @@
 
 import PocketBase from 'pocketbase';
 import { DEFAULT_VALUE_MODEL_CONFIG, computeAuctionEstimates } from '../src/lib/value-model';
+import { isScoringFormat, type ScoringFormat } from '../src/lib/fantasy-scoring';
 import {
   buildHistory,
   buildTargets,
@@ -45,6 +47,7 @@ interface CliArgs {
   dryRun: boolean;
   top: number;
   data: string | null;
+  scoringFormat: ScoringFormat;
   externalWeight: number;
 }
 
@@ -53,6 +56,7 @@ function parseArgs(argv: string[]): CliArgs {
   let dryRun = false;
   let top = 25;
   let data: string | null = null;
+  let scoringFormat: ScoringFormat = 'half';
   let externalWeight = DEFAULT_VALUE_MODEL_CONFIG.externalWeight;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -61,7 +65,11 @@ function parseArgs(argv: string[]): CliArgs {
     else if (arg === '--year') year = parseInt(argv[++i] ?? '', 10);
     else if (arg === '--top') top = parseInt(argv[++i] ?? '', 10);
     else if (arg === '--data') data = argv[++i] ?? '';
-    else throw new Error(`Unknown argument: "${arg}"`);
+    else if (arg === '--scoring-format') {
+      const value = argv[++i];
+      if (!isScoringFormat(value)) throw new Error('--scoring-format must be std, half, or ppr');
+      scoringFormat = value;
+    } else throw new Error(`Unknown argument: "${arg}"`);
   }
   if (!year || Number.isNaN(year)) throw new Error('--year is required (e.g. --year 2026)');
   if (data && !dryRun) {
@@ -70,7 +78,7 @@ function parseArgs(argv: string[]): CliArgs {
   if (!Number.isFinite(externalWeight) || externalWeight < 0) {
     throw new Error('--external-weight must be a number >= 0');
   }
-  return { year, dryRun, top, data, externalWeight };
+  return { year, dryRun, top, data, scoringFormat, externalWeight };
 }
 
 async function main(): Promise<void> {
@@ -79,7 +87,7 @@ async function main(): Promise<void> {
   let pb: PocketBase | null = null;
   let data: ValueData;
   if (args.data) {
-    data = loadFromDump(args.data);
+    data = loadFromDump(args.data, args.scoringFormat);
     console.log(`data: offline dump ${args.data}`);
   } else {
     pb = new PocketBase(POCKETBASE_URL);
@@ -89,7 +97,7 @@ async function main(): Promise<void> {
       throw new Error('PB_SUPERUSER_EMAIL and PB_SUPERUSER_PASSWORD are required');
     }
     await pb.collection('_superusers').authWithPassword(email, password);
-    data = await loadFromPocketBase(pb);
+    data = await loadFromPocketBase(pb, args.scoringFormat);
   }
 
   const history = buildHistory(data, args.year);

@@ -12,6 +12,7 @@ import {
   ImportInput,
   ImportReport,
   CalculateProjectedResult,
+  CalculateProjectedValuesInput,
   PlayerIdSyncReport,
 } from '@/server/types/import';
 
@@ -53,8 +54,8 @@ export function useImportAuctionValues() {
 export function useCalculateProjectedValues() {
   const invalidateYear = useInvalidateYear();
   return useMutation({
-    mutationFn: ({ year }: { year: number }): Promise<CalculateProjectedResult> =>
-      calculateProjectedValues(year),
+    mutationFn: (input: CalculateProjectedValuesInput): Promise<CalculateProjectedResult> =>
+      calculateProjectedValues(input),
     onSuccess: (_result, { year }) => invalidateYear(year),
   });
 }

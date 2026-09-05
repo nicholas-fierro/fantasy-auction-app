@@ -76,6 +76,7 @@ const KIND_LABEL: Record<ImportKind, string> = {
 const KIND_ORDER: ImportKind[] = ['rankings', 'rookies', 'values'];
 
 const RANKING_FORMAT_LABELS: Record<RankingScoringFormat, string> = {
+  std: 'Standard',
   half: 'Half-PPR',
   ppr: 'Full-PPR',
 };
@@ -162,8 +163,7 @@ function KindBadge({ kind }: { kind: ImportKind }) {
 export function ImportView() {
   const { selectedYear } = useAuction();
   const { league, settings } = useLeague();
-  const selectedLeagueRankingFormat =
-    settings.scoringFormat === 'ppr' ? 'ppr' : 'half';
+  const selectedLeagueRankingFormat = settings.scoringFormat;
   const [year, setYear] = useState<string>(String(selectedYear));
   const [rankingFormat, setRankingFormat] =
     useState<RankingScoringFormat>(selectedLeagueRankingFormat);
@@ -228,16 +228,8 @@ export function ImportView() {
     [files]
   );
   const hasRankings = importableFiles.some((file) => file.kind === 'rankings');
-  const leagueSupportsRankingFormat =
-    settings.scoringFormat === 'half' || settings.scoringFormat === 'ppr';
-  const rankingFormatMatchesLeague =
-    leagueSupportsRankingFormat && settings.scoringFormat === rankingFormat;
-  const selectedLeagueFormatLabel =
-    settings.scoringFormat === 'ppr'
-      ? 'Full-PPR'
-      : settings.scoringFormat === 'half'
-        ? 'Half-PPR'
-        : 'Standard';
+  const rankingFormatMatchesLeague = settings.scoringFormat === rankingFormat;
+  const selectedLeagueFormatLabel = RANKING_FORMAT_LABELS[settings.scoringFormat];
   const canImport =
     isYearValid &&
     importableFiles.length > 0 &&
@@ -323,6 +315,7 @@ export function ImportView() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="std">Standard</SelectItem>
                   <SelectItem value="half">Half-PPR</SelectItem>
                   <SelectItem value="ppr">Full-PPR</SelectItem>
                 </SelectContent>
@@ -718,13 +711,19 @@ function ProjectedValueCalculator({
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { league, settings } = useLeague();
   const calculate = useCalculateProjectedValues();
   const result = calculate.data;
 
   const handleApply = async () => {
     setError(null);
     try {
-      await calculate.mutateAsync({ year });
+      if (!league) throw new Error('Select a league before recalculating projected values');
+      await calculate.mutateAsync({
+        year,
+        leagueId: league.id,
+        scoringFormat: settings.scoringFormat,
+      });
       onCalculated(year);
     } catch (err) {
       console.error('Failed to recalculate projected values:', err);
@@ -798,7 +797,7 @@ function ProjectedValueCalculator({
           <Button
             variant="outline"
             onClick={() => setConfirmOpen(true)}
-            disabled={!isYearValid || calculate.isPending}
+            disabled={!isYearValid || !league || calculate.isPending}
             className="max-md:h-11 max-md:w-full"
           >
             {calculate.isPending ? 'Recalculating…' : `Recalculate ${isYearValid ? year : '—'}`}
@@ -809,7 +808,10 @@ function ProjectedValueCalculator({
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent variant="alert">
           <DialogHeader>
-            <DialogTitle>Recalculate projected prices for {year}?</DialogTitle>
+            <DialogTitle>
+              Recalculate {RANKING_FORMAT_LABELS[settings.scoringFormat]} projected prices for{' '}
+              {year}?
+            </DialogTitle>
             <DialogDescription>
               This replaces the Projected Price for <strong>every</strong> player in the{' '}
               {year} season, including any values you edited by hand. This cannot be undone.

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RankingImportInput } from '@/server/types/import';
+import type {
+  CalculateProjectedValuesInput,
+  RankingImportInput,
+  RankingScoringFormat,
+} from '@/server/types/import';
 
 const auth = vi.hoisted(() => ({ requireAuth: vi.fn() }));
 const core = vi.hoisted(() => ({
@@ -12,7 +16,7 @@ const core = vi.hoisted(() => ({
 vi.mock('@/server/lib/pocketbase', () => ({ requireAuth: auth.requireAuth }));
 vi.mock('@/server/lib/import-core', () => core);
 
-const { importRankings } = await import('./imports');
+const { calculateProjectedValues, importRankings } = await import('./imports');
 
 const report = {
   created: 0,
@@ -23,7 +27,7 @@ const report = {
   fuzzy: [],
 };
 
-function input(scoringFormat: 'half' | 'ppr' = 'ppr'): RankingImportInput {
+function input(scoringFormat: RankingScoringFormat = 'ppr'): RankingImportInput {
   return {
     year: 2026,
     csvText: 'RK,PLAYER NAME\n1,Player',
@@ -34,7 +38,7 @@ function input(scoringFormat: 'half' | 'ppr' = 'ppr'): RankingImportInput {
 
 function fakePocketBase(
   commissioner = 'user-1',
-  scoringFormat: 'std' | 'half' | 'ppr' = 'ppr'
+  scoringFormat: RankingScoringFormat = 'ppr'
 ) {
   const leagues = {
     getOne: vi.fn(async () => ({
@@ -59,6 +63,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
   core.importRankingsCore.mockResolvedValue(report);
+  core.calculateProjectedValuesCore.mockResolvedValue({
+    updated: 1,
+    unchanged: 0,
+    historyYears: [2025],
+    top: [],
+  });
 });
 
 describe('importRankings', () => {
@@ -69,6 +79,15 @@ describe('importRankings', () => {
 
     await expect(importRankings(request)).resolves.toEqual(report);
     expect(fake.leagues.getOne).toHaveBeenCalledWith('league-1');
+    expect(core.importRankingsCore).toHaveBeenCalledWith(fake.pb, request);
+  });
+
+  it('lets a standard league write the legacy ranking columns', async () => {
+    const fake = fakePocketBase('user-1', 'std');
+    auth.requireAuth.mockResolvedValue({ pb: fake.pb, userId: 'user-1' });
+    const request = input('std');
+
+    await expect(importRankings(request)).resolves.toEqual(report);
     expect(core.importRankingsCore).toHaveBeenCalledWith(fake.pb, request);
   });
 
@@ -90,5 +109,21 @@ describe('importRankings', () => {
       'Only the selected league commissioner can import rankings'
     );
     expect(core.importRankingsCore).not.toHaveBeenCalled();
+  });
+});
+
+describe('calculateProjectedValues', () => {
+  it('prices from the selected league scoring format', async () => {
+    const fake = fakePocketBase('user-1', 'ppr');
+    auth.requireAuth.mockResolvedValue({ pb: fake.pb, userId: 'user-1' });
+    const request: CalculateProjectedValuesInput = {
+      year: 2026,
+      leagueId: 'league-1',
+      scoringFormat: 'ppr',
+    };
+
+    await calculateProjectedValues(request);
+
+    expect(core.calculateProjectedValuesCore).toHaveBeenCalledWith(fake.pb, 2026, 'ppr');
   });
 });

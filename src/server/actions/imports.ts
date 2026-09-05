@@ -2,6 +2,7 @@
 
 import { requireAuth } from '@/server/lib/pocketbase';
 import { mapLeagueRecord } from '@/lib/league';
+import { isScoringFormat } from '@/lib/fantasy-scoring';
 import {
   importRankingsCore,
   importRookiesCore,
@@ -14,25 +15,35 @@ import {
   RankingImportInput,
   ImportReport,
   CalculateProjectedResult,
+  CalculateProjectedValuesInput,
   PlayerIdSyncReport,
 } from '@/server/types/import';
 
+async function requireSelectedLeagueCommissioner(
+  action: string,
+  input: { leagueId: string; scoringFormat: unknown }
+) {
+  const { pb, userId } = await requireAuth();
+  if (!isScoringFormat(input.scoringFormat)) {
+    throw new Error('Invalid scoring format');
+  }
+
+  const league = await pb.collection('leagues').getOne(input.leagueId);
+  if (league.commissioner !== userId) {
+    throw new Error(`Only the selected league commissioner can ${action}`);
+  }
+
+  const leagueFormat = mapLeagueRecord(league).settings.scoringFormat;
+  if (leagueFormat !== input.scoringFormat) {
+    throw new Error(`Selected league uses ${leagueFormat}, not ${input.scoringFormat}`);
+  }
+
+  return pb;
+}
+
 export async function importRankings(input: RankingImportInput): Promise<ImportReport> {
   try {
-    const { pb, userId } = await requireAuth();
-    const league = await pb.collection('leagues').getOne(input.leagueId);
-    if (league.commissioner !== userId) {
-      throw new Error('Only the selected league commissioner can import rankings');
-    }
-
-    const leagueFormat = mapLeagueRecord(league).settings.scoringFormat;
-    if (input.scoringFormat !== 'half' && input.scoringFormat !== 'ppr') {
-      throw new Error('Rankings format must be Half-PPR or Full-PPR');
-    }
-    if (leagueFormat !== input.scoringFormat) {
-      throw new Error(`Selected league uses ${leagueFormat}, not ${input.scoringFormat}`);
-    }
-
+    const pb = await requireSelectedLeagueCommissioner('import rankings', input);
     return await importRankingsCore(pb, input);
   } catch (error) {
     console.error('Error importing rankings:', error);
@@ -83,11 +94,14 @@ async function requireCommissioner(action: string) {
 }
 
 export async function calculateProjectedValues(
-  year: number
+  input: CalculateProjectedValuesInput
 ): Promise<CalculateProjectedResult> {
   try {
-    const pb = await requireCommissioner('Recalculate projected values');
-    return await calculateProjectedValuesCore(pb, year);
+    const pb = await requireSelectedLeagueCommissioner(
+      'recalculate projected values',
+      input
+    );
+    return await calculateProjectedValuesCore(pb, input.year, input.scoringFormat);
   } catch (error) {
     console.error('Error calculating projected values:', error);
     throw error instanceof Error
