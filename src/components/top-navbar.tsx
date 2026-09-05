@@ -14,6 +14,7 @@ import {
   X,
   ArrowRight,
   ArrowLeft,
+  ArrowLeftRight,
   Pause,
   Play,
   TriangleAlert,
@@ -26,6 +27,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useIsDraftRoom, useNavigation, type ViewType } from '@/contexts/navigation-context';
 import { useAuction } from '@/contexts/auction-context';
+import { useLeagueContext } from '@/contexts/league-context';
 import { useActiveDraft } from '@/contexts/active-draft-context';
 import { useMockDraft } from '@/contexts/mock-draft-context';
 import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
@@ -80,7 +82,7 @@ export const navigationItems = [
 ];
 
 type HeaderAction = {
-  id: 'end-draft' | 'leave-draft-room' | 'settings';
+  id: 'end-draft' | 'leave-draft-room' | 'switch-league' | 'settings';
   icon: ComponentType<{ className?: string }>;
   label: string;
   onSelect: () => void;
@@ -88,22 +90,37 @@ type HeaderAction = {
 };
 
 function useHeaderActions(onEndDraft: () => void) {
-  const { setCurrentView, setLandingOverride } = useNavigation();
+  const {
+    setCurrentView,
+    setLandingOverride,
+    landingStage,
+    returnToLeagueLanding,
+  } = useNavigation();
   const { selectedAuction } = useAuction();
+  const { memberships } = useLeagueContext();
   const showLiveNavigation = useIsDraftRoom();
   const isOwnActiveDraft =
     showLiveNavigation &&
     selectedAuction?.status === 'active' &&
     selectedAuction.user === pb.authStore.record?.id;
 
-  const actions: HeaderAction[] = [
-    {
-      id: 'settings',
-      icon: Settings,
-      label: 'Settings',
-      onSelect: () => setCurrentView('settings'),
-    },
-  ];
+  const actions: HeaderAction[] = [];
+
+  if (memberships.length > 1 && landingStage !== 'league') {
+    actions.push({
+      id: 'switch-league',
+      icon: ArrowLeftRight,
+      label: 'Switch League',
+      onSelect: returnToLeagueLanding,
+    });
+  }
+
+  actions.push({
+    id: 'settings',
+    icon: Settings,
+    label: 'Settings',
+    onSelect: () => setCurrentView('settings'),
+  });
 
   if (showLiveNavigation) {
     actions.push({

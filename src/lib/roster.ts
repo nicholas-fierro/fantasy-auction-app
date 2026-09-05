@@ -2,6 +2,12 @@ import type { DraftPickWithDetails } from '@/server/types/draft-pick';
 import type { Player } from '@/server/types/player';
 import type { ScoringFormat } from '@/lib/fantasy-scoring';
 
+export type DraftFormat = 'auction' | 'hybrid' | 'snake';
+
+export function isDraftFormat(value: unknown): value is DraftFormat {
+  return value === 'auction' || value === 'hybrid' || value === 'snake';
+}
+
 // Whether a team is the signed-in user's own team. The user's team id comes
 // from their league_members row (useUserTeamId in src/hooks/use-league.ts) —
 // it replaced the hardcoded USER_TEAM_ID constant when the app went
@@ -20,6 +26,7 @@ export interface RosterSettings {
   // Points per reception the league plays. Seeds the game-log view's scoring
   // toggle; imported rankings are half-PPR, which is why that's the default.
   scoringFormat: ScoringFormat;
+  draftFormat: DraftFormat;
 }
 
 export const DEFAULT_ROSTER_SETTINGS: RosterSettings = {
@@ -29,6 +36,7 @@ export const DEFAULT_ROSTER_SETTINGS: RosterSettings = {
   starterPositions: ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'K', 'DST'],
   benchSize: 6,
   scoringFormat: 'half',
+  draftFormat: 'hybrid',
 };
 
 export interface RosterSlot {

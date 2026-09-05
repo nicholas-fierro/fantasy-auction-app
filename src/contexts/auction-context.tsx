@@ -1,9 +1,10 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useMemo, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, useMemo, ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { pb } from '@/lib/pb-client';
 import { mapAuctionRecord } from '@/lib/pb-mappers';
+import { useLeagueContext } from '@/contexts/league-context';
 import { Auction } from '@/server/types/auction';
 
 interface AuctionContextType {
@@ -11,7 +12,8 @@ interface AuctionContextType {
   accessibleActiveAuctions: Auction[];
   selectedAuction: Auction | null;
   selectedAuctionId: string | null;
-  setSelectedAuctionId: (id: string | null) => void;
+  setSelectedAuctionId: (id: string | null, leagueId?: string | null) => void;
+  forgetSelectedAuctionId: () => void;
   selectedYear: number;
   activeAuction: Auction | null;
   isReadOnly: boolean;
@@ -25,29 +27,58 @@ const AuctionContext = createContext<AuctionContextType | undefined>(undefined);
 const SELECTED_AUCTION_KEY = 'selected-auction-id';
 
 export function AuctionProvider({ children }: { children: ReactNode }) {
-  const [explicitAuctionId, setSelectedAuctionId] = useState<string | null>(null);
+  const {
+    selectedLeagueId,
+    setSelectedLeagueId,
+    isLoading: leagueLoading,
+  } = useLeagueContext();
+  const [explicitAuctionId, setExplicitAuctionId] = useState<string | null>(null);
 
   // Restored in an effect, not a lazy initializer: reading storage during the
   // first render would diverge from the prerendered HTML and break hydration.
   useEffect(() => {
     const saved = localStorage.getItem(SELECTED_AUCTION_KEY);
-    if (saved) setSelectedAuctionId(saved);
+    if (saved) setExplicitAuctionId(saved);
   }, []);
 
-  const { data: auctions = [], isLoading } = useQuery({
+  const { data: allAuctions = [], isLoading: auctionsLoading } = useQuery({
     queryKey: ['auctions'],
     queryFn: async () => {
-      // Auth-scoped by the `auctions` API rule (user = @request.auth.id).
       const records = await pb.collection('auctions').getFullList({
         sort: '-drafted_at,-created',
       });
-      // Outside-league boards are readable so the value model can price off
-      // them (migration 1784380000), but they are not this league's drafts:
-      // they must never appear in the auction picker, be selectable, or be
-      // mistaken for an official draft anyone can enter.
       return records.filter((record) => record.external !== true).map(mapAuctionRecord);
     },
+    enabled: !!selectedLeagueId,
   });
+
+  // NFI-76 moves this league condition into the PocketBase query and query key.
+  // Keep the provider output scoped now so no selected-league surface can mix drafts.
+  const auctions = useMemo(
+    () => allAuctions.filter(auction => auction.league === selectedLeagueId),
+    [allAuctions, selectedLeagueId],
+  );
+
+  const setSelectedAuctionId = useCallback((
+    id: string | null,
+    leagueId?: string | null,
+  ) => {
+    if (id) {
+      const auction = allAuctions.find(candidate => candidate.id === id);
+      const targetLeagueId = leagueId ?? auction?.league ?? null;
+      if (targetLeagueId) {
+        setSelectedLeagueId(targetLeagueId);
+      } else if (process.env.NODE_ENV !== 'production') {
+        console.assert(auction, `Cannot select unknown auction ${id}`);
+      }
+    }
+    setExplicitAuctionId(id);
+  }, [allAuctions, setSelectedLeagueId]);
+
+  const forgetSelectedAuctionId = useCallback(() => {
+    setExplicitAuctionId(null);
+    localStorage.removeItem(SELECTED_AUCTION_KEY);
+  }, []);
 
   // Active drafts this user may enter. The `auctions` list rule also hands a
   // commissioner every league member's private mock, so entering is restricted
@@ -68,8 +99,7 @@ export function AuctionProvider({ children }: { children: ReactNode }) {
     accessibleActiveAuctions.find(auction => !userId || auction.user === userId) ?? null;
 
   // Follow the default owned active draft until the user explicitly chooses
-  // another one. The selection survives that draft completing — it becomes
-  // read-only history in place (`useCompletedDraftRedirect` moves the view).
+  // another one. A persisted auction from another league is ignored.
   const explicitAuction = auctions.find(auction => auction.id === explicitAuctionId) ?? null;
   const selectedAuction = explicitAuction ?? activeAuction;
 
@@ -78,7 +108,7 @@ export function AuctionProvider({ children }: { children: ReactNode }) {
   // was watching onto the landing page instead of the finished board.
   useEffect(() => {
     if (!explicitAuctionId && activeAuction) setSelectedAuctionId(activeAuction.id);
-  }, [explicitAuctionId, activeAuction]);
+  }, [explicitAuctionId, activeAuction, setSelectedAuctionId]);
 
   // Only persist a real selection — clearing it (going home, deleting a draft)
   // shouldn't erase where to return to on the next reload.
@@ -86,9 +116,23 @@ export function AuctionProvider({ children }: { children: ReactNode }) {
     if (explicitAuctionId) localStorage.setItem(SELECTED_AUCTION_KEY, explicitAuctionId);
   }, [explicitAuctionId]);
 
+  useEffect(() => {
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      selectedAuction?.league &&
+      selectedLeagueId &&
+      selectedAuction.league !== selectedLeagueId
+    ) {
+      throw new Error(
+        `Selected auction ${selectedAuction.id} belongs to league ${selectedAuction.league}, not ${selectedLeagueId}`,
+      );
+    }
+  }, [selectedAuction, selectedLeagueId]);
+
   const selectedAuctionId = selectedAuction?.id ?? null;
   const selectedYear = selectedAuction?.year ?? new Date().getFullYear();
   const isReadOnly = selectedAuction !== null && selectedAuction.status !== 'active';
+  const isLoading = leagueLoading || (!!selectedLeagueId && auctionsLoading);
 
   const value = useMemo(() => ({
     auctions,
@@ -96,11 +140,23 @@ export function AuctionProvider({ children }: { children: ReactNode }) {
     selectedAuction,
     selectedAuctionId,
     setSelectedAuctionId,
+    forgetSelectedAuctionId,
     selectedYear,
     activeAuction,
     isReadOnly,
     isLoading,
-  }), [auctions, accessibleActiveAuctions, selectedAuction, selectedAuctionId, setSelectedAuctionId, selectedYear, activeAuction, isReadOnly, isLoading]);
+  }), [
+    auctions,
+    accessibleActiveAuctions,
+    selectedAuction,
+    selectedAuctionId,
+    setSelectedAuctionId,
+    forgetSelectedAuctionId,
+    selectedYear,
+    activeAuction,
+    isReadOnly,
+    isLoading,
+  ]);
 
   return (
     <AuctionContext.Provider value={value}>

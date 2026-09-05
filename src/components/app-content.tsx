@@ -8,8 +8,10 @@ import { FantasyTeamsView } from '@/components/fantasy-teams-view';
 import { PageHeader } from '@/components/page-header';
 import { PageContainer } from '@/components/page-container';
 import { NoActiveDraftLanding } from '@/components/no-active-draft-landing';
+import { LeagueLanding } from '@/components/league-landing';
 import { DraftCompleteModal } from '@/components/draft-complete-modal';
 import { useAuction } from '@/contexts/auction-context';
+import { useLeagueContext } from '@/contexts/league-context';
 import {
   useCompletedDraftRedirect,
   useIsDraftRoom,
@@ -48,15 +50,27 @@ const DraftHistoryView = dynamic(
 );
 
 export function AppContent() {
-  const { currentView, showWatchlist, landingOverride, completedDraftModalOpen } = useNavigation();
+  const {
+    currentView,
+    showWatchlist,
+    landingOverride,
+    landingStage,
+    completedDraftModalOpen,
+  } = useNavigation();
   const { selectedAuction, isLoading: auctionsLoading } = useAuction();
+  const { isLoading: leaguesLoading } = useLeagueContext();
   const isDraftRoom = useIsDraftRoom();
   const isMobile = useIsMobile();
   const canShowLanding = currentView !== 'settings' && currentView !== 'draft-history';
-  // `selectedAuction` already falls back to the user's own active draft, so its
-  // absence is the "nothing to enter" signal.
+  const landingLoading = canShowLanding && (
+    leaguesLoading || (landingStage === 'draft' && auctionsLoading)
+  );
+  const showLeagueLanding = canShowLanding && landingStage === 'league';
   const showNoActiveDraft =
-    !auctionsLoading && canShowLanding && (landingOverride || !selectedAuction);
+    !landingLoading &&
+    !showLeagueLanding &&
+    canShowLanding &&
+    (landingOverride || !selectedAuction);
 
   useAutoDraftMode();
   useCompletedDraftRedirect();
@@ -99,12 +113,9 @@ export function AppContent() {
   return (
     <div className="flex flex-1 overflow-hidden">
       <main className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
-        {/* Hold the draft-dependent views on a loading state until the auctions
-            query settles: rendering the draft room while `selectedAuction` is
-            merely unresolved flashes an empty board before the landing page
-            takes over. Settings and draft history don't need an auction, so
-            they stay reachable while the request is in flight. */}
-        {auctionsLoading && canShowLanding ? <ViewLoadingFallback /> : showNoActiveDraft ? (
+        {landingLoading ? <ViewLoadingFallback /> : showLeagueLanding ? (
+          <LeagueLanding />
+        ) : showNoActiveDraft ? (
           <NoActiveDraftLanding />
         ) : (
           <>

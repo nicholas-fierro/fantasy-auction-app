@@ -23,7 +23,7 @@ export function useUpdateLeagueMember(leagueId: string | null) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['league-members', leagueId] });
-      queryClient.invalidateQueries({ queryKey: ['league-membership'] });
+      queryClient.invalidateQueries({ queryKey: ['league-memberships'] });
     },
   });
 }
@@ -36,7 +36,7 @@ export function useDeleteLeagueMember(leagueId: string | null) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['league-members', leagueId] });
-      queryClient.invalidateQueries({ queryKey: ['league-membership'] });
+      queryClient.invalidateQueries({ queryKey: ['league-memberships'] });
     },
   });
 }
@@ -53,8 +53,7 @@ export function useUpdateLeagueSettings(leagueId: string | null) {
       return pb.collection('leagues').update(leagueId, { settings });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['league', leagueId] });
-      queryClient.invalidateQueries({ queryKey: ['commissioner-league', userId] });
+      queryClient.invalidateQueries({ queryKey: ['league-memberships', userId] });
     },
   });
 }

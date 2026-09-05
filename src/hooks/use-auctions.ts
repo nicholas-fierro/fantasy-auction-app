@@ -26,7 +26,7 @@ export function useCreateAuction() {
       seedNewAuction(queryClient, newAuction);
       queryClient.invalidateQueries({ queryKey: ['historical-values'] });
       queryClient.invalidateQueries({ queryKey: ['computed-profiles'] });
-      enterDraftRoom(newAuction.id);
+      enterDraftRoom(newAuction.id, newAuction.league);
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ['auctions'] });
@@ -52,7 +52,7 @@ export function useReplaceAuction() {
         queryClient.invalidateQueries({ queryKey: ['historical-values'] });
         queryClient.invalidateQueries({ queryKey: ['computed-profiles'] });
       }
-      enterDraftRoom(newAuction.id);
+      enterDraftRoom(newAuction.id, newAuction.league);
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ['auctions'] });

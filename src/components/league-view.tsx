@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useCommissionerLeague } from '@/hooks/use-league';
+import { useLeague } from '@/hooks/use-league';
 import { useAllFantasyTeams } from '@/hooks/use-fantasy-teams';
 import {
   useCreateInvite,
@@ -49,7 +49,7 @@ const NO_TEAM = '__none__';
 // password resets), edit league settings, and hand out invite links. Rendered
 // only for the commissioner (admin-view gates the tab).
 export function LeagueView() {
-  const { league, settings } = useCommissionerLeague();
+  const { league, settings } = useLeague();
   const leagueId = league?.id ?? null;
 
   const { data: invites = [] } = useInvites(leagueId);
@@ -448,6 +448,7 @@ function LeagueSettingsCard({
       benchSize: Number(benchSize),
       starterPositions: parsedPositions,
       scoringFormat,
+      draftFormat: settings.draftFormat,
     };
 
     if (!Number.isFinite(next.budget) || next.budget <= 0) {

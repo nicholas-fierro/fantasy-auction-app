@@ -1,129 +1,39 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import type { RecordModel } from 'pocketbase';
-import { pb } from '@/lib/pb-client';
 import { useAuction } from '@/contexts/auction-context';
-import { DEFAULT_ROSTER_SETTINGS, type RosterSettings } from '@/lib/roster';
-import { isScoringFormat } from '@/lib/fantasy-scoring';
+import { useLeagueContext } from '@/contexts/league-context';
+import type { LeagueInfo } from '@/lib/league';
+import { pb } from '@/lib/pb-client';
+import type { RosterSettings } from '@/lib/roster';
 
-// Draft context uses the selected auction's league; commissioner admin context
-// resolves its league directly so it remains available without a selected draft.
-// Legacy auctions without a league (or a signed-in user without a membership)
-// degrade gracefully: default settings, no user team, not commissioner.
-
-export interface LeagueInfo {
-  id: string;
-  name: string;
-  commissioner: string;
-  settings: RosterSettings;
-}
-
-function mapLeagueRecord(record: RecordModel): LeagueInfo {
-  // Unknown/missing keys fall back field-by-field so a partial settings blob
-  // can't produce a half-configured league.
-  const settings: RosterSettings = {
-    ...DEFAULT_ROSTER_SETTINGS,
-    ...(record.settings ?? {}),
-  };
-
-  return {
-    id: record.id,
-    name: record.name,
-    commissioner: record.commissioner,
-    settings: {
-      ...settings,
-      // An unrecognized format would reach scoring as an undefined multiplier
-      // and silently turn every points column into NaN.
-      scoringFormat: isScoringFormat(settings.scoringFormat)
-        ? settings.scoringFormat
-        : DEFAULT_ROSTER_SETTINGS.scoringFormat,
-    },
-  };
-}
+export type { LeagueInfo, LeagueMembership } from '@/lib/league';
 
 export function useLeague(): {
   league: LeagueInfo | null;
   settings: RosterSettings;
   isCommissioner: boolean;
 } {
-  const { selectedAuction } = useAuction();
-  const leagueId = selectedAuction?.league ?? null;
-
-  const { data } = useQuery({
-    queryKey: ['league', leagueId],
-    queryFn: async (): Promise<LeagueInfo> => {
-      const record = await pb.collection('leagues').getOne(leagueId!);
-      return mapLeagueRecord(record);
-    },
-    enabled: !!leagueId,
-    staleTime: 5 * 60 * 1000, // league config changes rarely
-  });
-
-  const userId = pb.authStore.record?.id ?? null;
-  return {
-    league: data ?? null,
-    settings: data?.settings ?? DEFAULT_ROSTER_SETTINGS,
-    isCommissioner: !!data && !!userId && data.commissioner === userId,
-  };
+  const { selectedLeague, settings, isCommissioner } = useLeagueContext();
+  return { league: selectedLeague, settings, isCommissioner };
 }
 
-// League-level commissioner check, independent of any selected auction. Use
-// this for league-admin surfaces (Settings tabs) that exist whether or not a
-// draft is active — useLeague().isCommissioner is auction-scoped and goes false
-// with no auction selected. A user commissions at most one league (leagues
-// listRule allows `commissioner = @request.auth.id`).
-export function useCommissionerLeague(): {
-  league: LeagueInfo | null;
-  settings: RosterSettings;
-} {
+export function useCommissionedLeagues(): LeagueInfo[] {
+  const { leagues } = useLeagueContext();
   const userId = pb.authStore.record?.id ?? null;
-  const { data } = useQuery({
-    queryKey: ['commissioner-league', userId],
-    queryFn: async (): Promise<LeagueInfo | null> => {
-      const rows = await pb.collection('leagues').getList(1, 1, {
-        filter: pb.filter('commissioner = {:userId}', { userId }),
-      });
-      const record = rows.items[0];
-      return record ? mapLeagueRecord(record) : null;
-    },
-    enabled: !!userId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  return {
-    league: data ?? null,
-    settings: data?.settings ?? DEFAULT_ROSTER_SETTINGS,
-  };
+  return leagues.filter(league => league.commissioner === userId);
 }
 
-// Boolean convenience for commissioner-only surfaces.
+export function useIsCommissionerOf(leagueId: string | null): boolean {
+  const commissionedLeagues = useCommissionedLeagues();
+  return !!leagueId && commissionedLeagues.some(league => league.id === leagueId);
+}
+
 export function useIsCommissioner(): boolean {
-  const { league } = useCommissionerLeague();
-  return !!league;
+  return useLeagueContext().isCommissioner;
 }
 
-// The signed-in user's fantasy team in the selected auction's league, from
-// their league_members row. Null while loading, without a membership, or for
-// legacy auctions with no league.
 export function useUserTeamId(): string | null {
-  const { selectedAuction } = useAuction();
-  const leagueId = selectedAuction?.league ?? null;
-  const userId = pb.authStore.record?.id ?? null;
-
-  const { data } = useQuery({
-    queryKey: ['league-membership', leagueId, userId],
-    queryFn: async (): Promise<string | null> => {
-      const rows = await pb.collection('league_members').getList(1, 1, {
-        filter: pb.filter('league = {:leagueId} && user = {:userId}', { leagueId, userId }),
-      });
-      return rows.items[0]?.fantasy_team || null;
-    },
-    enabled: !!leagueId && !!userId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  return data ?? null;
+  return useLeagueContext().selectedMembership?.fantasyTeamId ?? null;
 }
 
 // Role for pick entry in the selected auction (docs/multi-user-plan.md):
@@ -137,9 +47,11 @@ export function useDraftRole(): {
   userTeamId: string | null;
 } {
   const { selectedAuction } = useAuction();
-  const { isCommissioner } = useLeague();
-  const userTeamId = useUserTeamId();
+  const { isCommissioner, selectedMembership } = useLeagueContext();
   const userId = pb.authStore.record?.id ?? null;
   const isOwner = !!selectedAuction && !!userId && selectedAuction.user === userId;
-  return { canPickAnyTeam: isOwner || isCommissioner, userTeamId };
+  return {
+    canPickAnyTeam: isOwner || isCommissioner,
+    userTeamId: selectedMembership?.fantasyTeamId ?? null,
+  };
 }

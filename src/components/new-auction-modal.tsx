@@ -35,10 +35,11 @@ import { FantasyTeam } from '@/server/types/fantasy-team';
 import { useAllFantasyTeams } from '@/hooks/use-fantasy-teams';
 import { useCreateAuction, useReplaceAuction } from '@/hooks/use-auctions';
 import { useAuction } from '@/contexts/auction-context';
+import { useLeagueContext } from '@/contexts/league-context';
 import { useIsCommissioner } from '@/hooks/use-league';
 import { pb } from '@/lib/pb-client';
 import { cn } from '@/lib/utils';
-import type { Auction } from '@/server/types/auction';
+import type { Auction, CreateAuctionInput } from '@/server/types/auction';
 
 interface SortableTeamItemProps {
   team: FantasyTeam;
@@ -110,6 +111,7 @@ export function NewAuctionModal({ isOpen, onClose, initialType = 'mock' }: NewAu
   const wasOpen = useRef(false);
 
   const { auctions } = useAuction();
+  const { selectedLeagueId } = useLeagueContext();
   const isCommissioner = useIsCommissioner();
   const { data: teams = [] } = useAllFantasyTeams();
   const createAuction = useCreateAuction();
@@ -195,16 +197,20 @@ export function NewAuctionModal({ isOpen, onClose, initialType = 'mock' }: NewAu
     });
   }
 
-  const auctionInput = () => ({
-    name: name.trim(),
-    year: parsedYear,
-    type,
-    sim: type === 'mock' ? sim : false,
-    teamOrder: orderedTeams.map((team, index) => ({
-      fantasy_team_id: team.id,
-      draft_order: index + 1,
-    })),
-  });
+  const auctionInput = (): CreateAuctionInput => {
+    if (!selectedLeagueId) throw new Error('No league selected');
+    return {
+      name: name.trim(),
+      year: parsedYear,
+      type,
+      leagueId: selectedLeagueId,
+      sim: type === 'mock' ? sim : false,
+      teamOrder: orderedTeams.map((team, index) => ({
+        fantasy_team_id: team.id,
+        draft_order: index + 1,
+      })),
+    };
+  };
 
   const createNewAuction = async () => {
     setIsLoading(true);
@@ -222,6 +228,10 @@ export function NewAuctionModal({ isOpen, onClose, initialType = 'mock' }: NewAu
 
   const handleSubmit = () => {
     if (!name.trim() || !isYearValid || orderedTeams.length === 0) return;
+    if (!selectedLeagueId) {
+      toast.error('Select a league before starting a draft');
+      return;
+    }
     if (type === 'official' && !isCommissioner) return;
 
     if (sameTypeActiveAuction) {

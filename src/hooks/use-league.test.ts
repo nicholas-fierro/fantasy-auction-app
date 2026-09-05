@@ -1,120 +1,93 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_ROSTER_SETTINGS } from '@/lib/roster';
+import type { LeagueInfo, LeagueMembership } from '@/lib/league';
 
 const mocks = vi.hoisted(() => ({
   authStore: { record: { id: 'user-1' } as { id: string } | null },
-  collection: vi.fn(),
-  filter: vi.fn(),
-  getList: vi.fn(),
   useAuction: vi.fn(),
-  useQuery: vi.fn(),
+  useLeagueContext: vi.fn(),
 }));
 
-vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.useQuery }));
 vi.mock('@/contexts/auction-context', () => ({ useAuction: mocks.useAuction }));
+vi.mock('@/contexts/league-context', () => ({ useLeagueContext: mocks.useLeagueContext }));
 vi.mock('@/lib/pb-client', () => ({
-  pb: {
-    authStore: mocks.authStore,
-    collection: mocks.collection,
-    filter: mocks.filter,
-  },
+  pb: { authStore: mocks.authStore },
 }));
 
-const { useCommissionerLeague } = await import('./use-league');
+const {
+  useCommissionedLeagues,
+  useDraftRole,
+  useIsCommissioner,
+  useIsCommissionerOf,
+  useLeague,
+  useUserTeamId,
+} = await import('./use-league');
 
-type QueryOptions = {
-  queryKey: unknown[];
-  queryFn: () => Promise<unknown>;
-  enabled: boolean;
+const leagueA: LeagueInfo = {
+  id: 'league-a',
+  name: 'League A',
+  commissioner: 'user-1',
+  settings: DEFAULT_ROSTER_SETTINGS,
 };
-
-function CommissionerLeagueProbe() {
-  return useCommissionerLeague();
-}
+const leagueB: LeagueInfo = {
+  id: 'league-b',
+  name: 'League B',
+  commissioner: 'user-1',
+  settings: { ...DEFAULT_ROSTER_SETTINGS, benchSize: 5 },
+};
+const membershipB: LeagueMembership = {
+  id: 'membership-b',
+  leagueId: 'league-b',
+  userId: 'user-1',
+  fantasyTeamId: 'team-b',
+  teamName: 'Team B',
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.authStore.record = { id: 'user-1' };
-  mocks.collection.mockReturnValue({ getList: mocks.getList });
-  mocks.filter.mockImplementation((expression, params) => ({ expression, params }));
-  mocks.useQuery.mockReturnValue({ data: undefined });
+  mocks.useAuction.mockReturnValue({ selectedAuction: null });
+  mocks.useLeagueContext.mockReturnValue({
+    memberships: [membershipB],
+    leagues: [leagueA, leagueB],
+    selectedLeagueId: leagueB.id,
+    selectedLeague: leagueB,
+    selectedMembership: membershipB,
+    settings: leagueB.settings,
+    format: leagueB.settings.draftFormat,
+    isCommissioner: true,
+    isLoading: false,
+  });
 });
 
-describe('useCommissionerLeague', () => {
-  it('resolves commissioner league without consulting selected auction', async () => {
-    mocks.getList.mockResolvedValue({
-      items: [{
-        id: 'league-1',
-        name: 'Test League',
-        commissioner: 'user-1',
-        settings: { benchSize: 7, scoringFormat: 'half' },
-      }],
+describe('league hooks', () => {
+  it('resolves settings, team, and commissioner from selected league without an auction', () => {
+    expect(useLeague()).toEqual({
+      league: leagueB,
+      settings: leagueB.settings,
+      isCommissioner: true,
     });
-
-    CommissionerLeagueProbe();
-
+    expect(useUserTeamId()).toBe('team-b');
+    expect(useIsCommissioner()).toBe(true);
     expect(mocks.useAuction).not.toHaveBeenCalled();
-    const options = mocks.useQuery.mock.calls[0][0] as QueryOptions;
-    expect(options.queryKey).toEqual(['commissioner-league', 'user-1']);
-    expect(options.enabled).toBe(true);
-
-    await expect(options.queryFn()).resolves.toEqual({
-      id: 'league-1',
-      name: 'Test League',
-      commissioner: 'user-1',
-      settings: {
-        ...DEFAULT_ROSTER_SETTINGS,
-        benchSize: 7,
-        scoringFormat: 'half',
-      },
-    });
-    expect(mocks.collection).toHaveBeenCalledWith('leagues');
-    expect(mocks.filter).toHaveBeenCalledWith(
-      'commissioner = {:userId}',
-      { userId: 'user-1' }
-    );
   });
 
-  it('returns defaults when authenticated user commissions no league', async () => {
-    mocks.getList.mockResolvedValue({ items: [] });
-
-    CommissionerLeagueProbe();
-
-    const options = mocks.useQuery.mock.calls[0][0] as QueryOptions;
-    await expect(options.queryFn()).resolves.toBeNull();
-
-    mocks.useQuery.mockReturnValue({ data: null });
-    expect(CommissionerLeagueProbe()).toEqual({
-      league: null,
-      settings: DEFAULT_ROSTER_SETTINGS,
-    });
+  it('returns every commissioned league and checks a specific league', () => {
+    expect(useCommissionedLeagues()).toEqual([leagueA, leagueB]);
+    expect(useIsCommissionerOf('league-a')).toBe(true);
+    expect(useIsCommissionerOf('missing')).toBe(false);
   });
 
-  it('falls back from an invalid scoring format', async () => {
-    mocks.getList.mockResolvedValue({
-      items: [{
-        id: 'league-1',
-        name: 'Test League',
-        commissioner: 'user-1',
-        settings: { scoringFormat: 'invalid' },
-      }],
+  it('keeps auction ownership as the other pick-entry lane', () => {
+    mocks.useLeagueContext.mockReturnValue({
+      ...mocks.useLeagueContext(),
+      isCommissioner: false,
     });
+    mocks.useAuction.mockReturnValue({ selectedAuction: { user: 'user-1' } });
 
-    CommissionerLeagueProbe();
-
-    const options = mocks.useQuery.mock.calls[0][0] as QueryOptions;
-    await expect(options.queryFn()).resolves.toMatchObject({
-      settings: { scoringFormat: DEFAULT_ROSTER_SETTINGS.scoringFormat },
+    expect(useDraftRole()).toEqual({
+      canPickAnyTeam: true,
+      userTeamId: 'team-b',
     });
-  });
-
-  it('does not query without an authenticated user', () => {
-    mocks.authStore.record = null;
-
-    CommissionerLeagueProbe();
-
-    const options = mocks.useQuery.mock.calls[0][0] as QueryOptions;
-    expect(options.queryKey).toEqual(['commissioner-league', null]);
-    expect(options.enabled).toBe(false);
   });
 });
