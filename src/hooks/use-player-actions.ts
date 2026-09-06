@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useCreateDraftPick, useAllDraftPicks } from '@/hooks/use-draft-picks';
 import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
-import { useDraftRole, useLeague } from '@/hooks/use-league';
+import { useDraftRole, useIsSnakeLeague, useLeague } from '@/hooks/use-league';
 import { useActiveDraft } from '@/contexts/active-draft-context';
 import { useNavigation } from '@/contexts/navigation-context';
 import { useAuction } from '@/contexts/auction-context';
@@ -29,6 +29,10 @@ export function usePlayerActions(): PlayerActionState & PlayerActionHandlers {
 
   const { canNominate, setActivePlayer } = useActiveDraft();
   const { isSnakeMode } = useNavigation();
+  // Format-level, not phase-toggle-level (NFI-82): a snake league drafts snake
+  // from pick one, even before the auto mode effect runs.
+  const isSnakeLeague = useIsSnakeLeague();
+  const isSnakeDraft = isSnakeLeague || isSnakeMode;
   const { isReadOnly } = useAuction();
   const mockDraft = useMockDraft();
   const { data: teams = [] } = useAuctionTeams();
@@ -51,7 +55,7 @@ export function usePlayerActions(): PlayerActionState & PlayerActionHandlers {
     (canPickAnyTeam || snakeTeamQueue.currentTeam.id === userTeamId);
 
   const handleSnakeDraft = useCallback(async (player: Player) => {
-    if (isReadOnly || !isSnakeMode || !snakeTeamQueue.currentTeam || !canActForCurrentTeam) return;
+    if (isReadOnly || !isSnakeDraft || !snakeTeamQueue.currentTeam || !canActForCurrentTeam) return;
 
     if (mockDraft.isActive) {
       if (mockDraft.status === 'snake-user') mockDraft.submitSnakePick(player);
@@ -70,7 +74,7 @@ export function usePlayerActions(): PlayerActionState & PlayerActionHandlers {
     } finally {
       setIsDraftingPlayer(null);
     }
-  }, [isReadOnly, isSnakeMode, snakeTeamQueue.currentTeam, canActForCurrentTeam, mockDraft, mutateAsync]);
+  }, [isReadOnly, isSnakeDraft, snakeTeamQueue.currentTeam, canActForCurrentTeam, mockDraft, mutateAsync]);
 
   const handleMakeActive = useCallback((player: Player) => {
     if (isReadOnly || !canNominate) return;
@@ -81,27 +85,27 @@ export function usePlayerActions(): PlayerActionState & PlayerActionHandlers {
   const handlePlayerAction = useCallback((player: Player) => {
     if (isReadOnly) return;
     if (mockDraft.isActive) {
-      if (isSnakeMode) {
+      if (isSnakeDraft) {
         void handleSnakeDraft(player);
       } else if (mockDraft.status === 'user-nominate') {
         mockDraft.nominate(player);
       }
       return;
     }
-    if (isSnakeMode) {
+    if (isSnakeDraft) {
       void handleSnakeDraft(player);
     } else {
       if (!canNominate) return;
       setActivePlayer(player);
     }
-  }, [canNominate, isReadOnly, mockDraft, isSnakeMode, handleSnakeDraft, setActivePlayer]);
+  }, [canNominate, isReadOnly, mockDraft, isSnakeDraft, handleSnakeDraft, setActivePlayer]);
 
   return {
     // State
     isDraftingPlayer,
     isPlayerDrafting: (playerId: string) => isDraftingPlayer === playerId,
     canSnakeDraft:
-      isSnakeMode &&
+      isSnakeDraft &&
       !isReadOnly &&
       canActForCurrentTeam &&
       (!mockDraft.isActive || mockDraft.status === 'snake-user'),

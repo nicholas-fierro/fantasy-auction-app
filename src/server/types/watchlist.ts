@@ -22,7 +22,7 @@ export interface WatchlistWithDetails extends Watchlist {
     tier: number;
     position_rank: number;
     sos: number;
-    ecr_vs_adp: number;
+    ecr_vs_adp: number | null;
     projected_auction_value: number | null;
     is_rookie: boolean;
     gsis_id: string | null;

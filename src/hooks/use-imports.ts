@@ -12,6 +12,7 @@ import {
   ImportInput,
   ImportReport,
   CalculateProjectedResult,
+  CalculateProjectedValuesInput,
   PlayerIdSyncReport,
 } from '@/server/types/import';
 
@@ -28,10 +29,12 @@ function useInvalidateYear() {
   };
 }
 
-function useImportMutation(action: (input: ImportInput) => Promise<ImportReport>) {
+function useImportMutation<TInput extends ImportInput>(
+  action: (input: TInput) => Promise<ImportReport>
+) {
   const invalidateYear = useInvalidateYear();
   return useMutation({
-    mutationFn: (input: ImportInput) => action(input),
+    mutationFn: (input: TInput) => action(input),
     onSuccess: (_report, input) => invalidateYear(input.year),
   });
 }
@@ -51,8 +54,8 @@ export function useImportAuctionValues() {
 export function useCalculateProjectedValues() {
   const invalidateYear = useInvalidateYear();
   return useMutation({
-    mutationFn: ({ year }: { year: number }): Promise<CalculateProjectedResult> =>
-      calculateProjectedValues(year),
+    mutationFn: (input: CalculateProjectedValuesInput): Promise<CalculateProjectedResult> =>
+      calculateProjectedValues(input),
     onSuccess: (_result, { year }) => invalidateYear(year),
   });
 }

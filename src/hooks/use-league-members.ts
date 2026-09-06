@@ -52,8 +52,10 @@ export function useUpdateLeagueSettings(leagueId: string | null) {
       if (!leagueId) throw new Error('No league selected');
       return pb.collection('leagues').update(leagueId, { settings });
     },
-    onSuccess: () => {
+    onSuccess: (league) => {
       queryClient.invalidateQueries({ queryKey: ['league-memberships', userId] });
+      queryClient.invalidateQueries({ queryKey: ['historical-values', league.id] });
+      queryClient.invalidateQueries({ queryKey: ['computed-profiles', league.id] });
     },
   });
 }

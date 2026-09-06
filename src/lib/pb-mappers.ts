@@ -6,7 +6,8 @@ import { DraftPickWithDetails } from '@/server/types/draft-pick';
 import { WatchlistWithDetails } from '@/server/types/watchlist';
 import { Auction } from '@/server/types/auction';
 import { PlayerGameLog } from '@/server/types/player-game-log';
-import type { GameLogStats } from '@/lib/fantasy-scoring';
+import type { GameLogStats, ScoringFormat } from '@/lib/fantasy-scoring';
+import { seasonEcrVsAdpValue, seasonRankingValue } from '@/lib/season-rankings';
 
 // Client-safe mapping logic shared by the direct-SDK read hooks. Ported verbatim
 // from the (deleted) server actions so the returned shapes are byte-for-byte
@@ -16,7 +17,10 @@ import type { GameLogStats } from '@/lib/fantasy-scoring';
 // Flatten a `player_seasons` record (with its `player_id` relation expanded) into
 // the app-facing Player shape: identity from the expanded players record, stats
 // from the season row.
-export function mapSeasonToPlayer(record: RecordModel): Player {
+export function mapSeasonToPlayer(
+  record: RecordModel,
+  scoringFormat: ScoringFormat
+): Player {
   const p = record.expand?.player_id;
   return {
     id: p?.id ?? record.player_id,
@@ -24,12 +28,12 @@ export function mapSeasonToPlayer(record: RecordModel): Player {
     name: p?.name ?? '',
     team: record.team ?? '',
     position: p?.position ?? '',
-    position_rank: record.position_rank,
+    position_rank: seasonRankingValue(record, 'position_rank', scoringFormat),
     bye_week: record.bye_week,
     sos: record.sos,
-    ecr_vs_adp: record.ecr_vs_adp,
-    rank: record.rank,
-    tier: record.tier,
+    ecr_vs_adp: seasonEcrVsAdpValue(record, scoringFormat),
+    rank: seasonRankingValue(record, 'rank', scoringFormat),
+    tier: seasonRankingValue(record, 'tier', scoringFormat),
     projected_auction_value: record.projected_auction_value > 0 ? record.projected_auction_value : null,
     is_rookie: record.is_rookie ?? false,
     gsis_id: p?.gsis_id || null,
@@ -41,18 +45,21 @@ export function mapSeasonToPlayer(record: RecordModel): Player {
   };
 }
 
-export function mapSeasonRecord(record: RecordModel): PlayerSeason {
+export function mapSeasonRecord(
+  record: RecordModel,
+  scoringFormat: ScoringFormat
+): PlayerSeason {
   return {
     id: record.id,
     player_id: record.player_id,
     year: record.year,
     team: record.team ?? '',
-    position_rank: record.position_rank,
+    position_rank: seasonRankingValue(record, 'position_rank', scoringFormat),
     bye_week: record.bye_week,
     sos: record.sos,
-    ecr_vs_adp: record.ecr_vs_adp,
-    rank: record.rank,
-    tier: record.tier,
+    ecr_vs_adp: seasonEcrVsAdpValue(record, scoringFormat),
+    rank: seasonRankingValue(record, 'rank', scoringFormat),
+    tier: seasonRankingValue(record, 'tier', scoringFormat),
     projected_auction_value: record.projected_auction_value > 0 ? record.projected_auction_value : null,
     actual_auction_value: record.actual_auction_value > 0 ? record.actual_auction_value : null,
     is_rookie: record.is_rookie ?? false,
@@ -81,7 +88,11 @@ export function mapGameLogRecord(record: RecordModel): PlayerGameLog {
 // Merge the auction-year's per-season stats over the frozen fields on the
 // expanded `players` record. `season` wins when present; otherwise fall back to
 // the frozen fields so mock/future-year auctions still render team/bye/rank.
-export function mapPickRecord(record: RecordModel, season?: RecordModel): DraftPickWithDetails {
+export function mapPickRecord(
+  record: RecordModel,
+  scoringFormat: ScoringFormat,
+  season?: RecordModel
+): DraftPickWithDetails {
   const p = record.expand?.player_id;
   return {
     id: record.id,
@@ -99,12 +110,16 @@ export function mapPickRecord(record: RecordModel, season?: RecordModel): DraftP
       name: p?.name,
       team: season?.team ?? p?.team,
       position: p?.position,
-      position_rank: season?.position_rank ?? p?.position_rank,
+      position_rank: season
+        ? seasonRankingValue(season, 'position_rank', scoringFormat)
+        : p?.position_rank,
       bye_week: season?.bye_week ?? p?.bye_week,
       sos: season?.sos ?? p?.sos,
-      ecr_vs_adp: season?.ecr_vs_adp ?? p?.ecr_vs_adp,
-      rank: season?.rank ?? p?.rank,
-      tier: season?.tier ?? p?.tier,
+      ecr_vs_adp: season
+        ? seasonEcrVsAdpValue(season, scoringFormat)
+        : null,
+      rank: season ? seasonRankingValue(season, 'rank', scoringFormat) : p?.rank,
+      tier: season ? seasonRankingValue(season, 'tier', scoringFormat) : p?.tier,
       projected_auction_value: season
         ? (season.projected_auction_value > 0 ? season.projected_auction_value : null)
         : p?.projected_auction_value,
@@ -128,7 +143,11 @@ export function mapPickRecord(record: RecordModel, season?: RecordModel): DraftP
 
 // Hydrate a watchlist record with the selected year's per-season stats layered
 // over the expanded players record. Mirrors the shape getWatchlist returned.
-export function mapWatchlistRecord(record: RecordModel, season?: RecordModel): WatchlistWithDetails {
+export function mapWatchlistRecord(
+  record: RecordModel,
+  scoringFormat: ScoringFormat,
+  season?: RecordModel
+): WatchlistWithDetails {
   const p = record.expand?.player_id;
   return {
     id: record.id,
@@ -147,11 +166,15 @@ export function mapWatchlistRecord(record: RecordModel, season?: RecordModel): W
       team: season?.team ?? p?.team,
       position: p?.position,
       bye_week: season?.bye_week ?? p?.bye_week,
-      rank: season?.rank ?? p?.rank,
-      tier: season?.tier ?? p?.tier,
-      position_rank: season?.position_rank ?? p?.position_rank,
+      rank: season ? seasonRankingValue(season, 'rank', scoringFormat) : p?.rank,
+      tier: season ? seasonRankingValue(season, 'tier', scoringFormat) : p?.tier,
+      position_rank: season
+        ? seasonRankingValue(season, 'position_rank', scoringFormat)
+        : p?.position_rank,
       sos: season?.sos ?? p?.sos,
-      ecr_vs_adp: season?.ecr_vs_adp ?? p?.ecr_vs_adp,
+      ecr_vs_adp: season
+        ? seasonEcrVsAdpValue(season, scoringFormat)
+        : null,
       projected_auction_value: season
         ? (season.projected_auction_value > 0 ? season.projected_auction_value : null)
         : p?.projected_auction_value,

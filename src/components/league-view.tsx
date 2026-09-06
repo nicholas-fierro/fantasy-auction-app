@@ -39,7 +39,7 @@ import {
   useUpdateLeagueMember,
   useUpdateLeagueSettings,
 } from '@/hooks/use-league-members';
-import type { RosterSettings } from '@/lib/roster';
+import { isDraftFormat, validateRosterSettings, type DraftFormat, type RosterSettings } from '@/lib/roster';
 import type { ScoringFormat } from '@/lib/fantasy-scoring';
 import { resetMemberPassword } from '@/server/actions/members';
 
@@ -424,6 +424,8 @@ function LeagueSettingsCard({
   const [benchSize, setBenchSize] = useState(String(settings.benchSize));
   const [starterPositions, setStarterPositions] = useState(settings.starterPositions.join(', '));
   const [scoringFormat, setScoringFormat] = useState<ScoringFormat>(settings.scoringFormat);
+  const [draftFormat, setDraftFormat] = useState<DraftFormat>(settings.draftFormat);
+  const isSnake = draftFormat === 'snake';
 
   // Re-sync when the league's settings load or change out from under the form.
   useEffect(() => {
@@ -433,6 +435,7 @@ function LeagueSettingsCard({
     setBenchSize(String(settings.benchSize));
     setStarterPositions(settings.starterPositions.join(', '));
     setScoringFormat(settings.scoringFormat);
+    setDraftFormat(settings.draftFormat);
   }, [settings]);
 
   const handleSave = async () => {
@@ -448,35 +451,12 @@ function LeagueSettingsCard({
       benchSize: Number(benchSize),
       starterPositions: parsedPositions,
       scoringFormat,
-      draftFormat: settings.draftFormat,
+      draftFormat,
     };
 
-    if (!Number.isFinite(next.budget) || next.budget <= 0) {
-      toast.error('Budget must be a positive number');
-      return;
-    }
-    if (!Number.isFinite(next.paidAuctionSlots) || !Number.isInteger(next.paidAuctionSlots) || next.paidAuctionSlots <= 0) {
-      toast.error('Paid slots must be a positive integer');
-      return;
-    }
-    if (!Number.isFinite(next.minimumBid) || next.minimumBid < 1) {
-      toast.error('Minimum bid must be at least $1');
-      return;
-    }
-    if (!Number.isFinite(next.benchSize) || !Number.isInteger(next.benchSize) || next.benchSize < 0) {
-      toast.error('Bench size must be a non-negative integer');
-      return;
-    }
-    if (next.budget < next.paidAuctionSlots * next.minimumBid) {
-      toast.error('Budget must cover all paid slots at the minimum bid');
-      return;
-    }
-    if (parsedPositions.length === 0) {
-      toast.error('Add at least one starter position');
-      return;
-    }
-    if (next.paidAuctionSlots > parsedPositions.length + next.benchSize) {
-      toast.error('Paid slots cannot exceed starter positions plus bench size');
+    const validationError = validateRosterSettings(next);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
@@ -504,6 +484,32 @@ function LeagueSettingsCard({
             can&apos;t invalidate picks already made.
           </p>
         )}
+        <div className="space-y-1 sm:max-w-xs">
+          <Label htmlFor="settings-format">Draft format</Label>
+          <Select
+            value={draftFormat}
+            onValueChange={(value) => {
+              if (!isDraftFormat(value)) return;
+              setDraftFormat(value);
+              if (value === 'snake') setPaidAuctionSlots('0');
+            }}
+            disabled={formDisabled}
+          >
+            <SelectTrigger id="settings-format">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auction">Auction</SelectItem>
+              <SelectItem value="hybrid">Hybrid (auction then snake)</SelectItem>
+              <SelectItem value="snake">Snake</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {isSnake
+              ? 'Snake drafts have no paid slots. Budget and minimum bid may be zero.'
+              : 'Budget must cover every paid slot at the minimum bid.'}
+          </p>
+        </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="space-y-1">
             <Label htmlFor="settings-budget">Budget</Label>
@@ -511,7 +517,7 @@ function LeagueSettingsCard({
               id="settings-budget"
               type="number"
               inputMode="numeric"
-              min={1}
+              min={isSnake ? 0 : 1}
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
               disabled={formDisabled}
@@ -523,10 +529,10 @@ function LeagueSettingsCard({
               id="settings-slots"
               type="number"
               inputMode="numeric"
-              min={1}
+              min={isSnake ? 0 : 1}
               value={paidAuctionSlots}
               onChange={(e) => setPaidAuctionSlots(e.target.value)}
-              disabled={formDisabled}
+              disabled={formDisabled || isSnake}
             />
           </div>
           <div className="space-y-1">
@@ -535,7 +541,7 @@ function LeagueSettingsCard({
               id="settings-minbid"
               type="number"
               inputMode="numeric"
-              min={1}
+              min={isSnake ? 0 : 1}
               value={minimumBid}
               onChange={(e) => setMinimumBid(e.target.value)}
               disabled={formDisabled}

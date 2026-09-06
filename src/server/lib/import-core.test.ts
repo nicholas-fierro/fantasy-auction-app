@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeName, rankingFields } from '@/server/lib/import-core';
 
-// The FantasyPros CSV export carries every column; partial sources (a hand-made
-// CSV, or the cheat-sheet page's embedded ecrData) do not. An absent column must
-// be left alone rather than written as 0 — writing it blanks `sos` /
-// `ecr_vs_adp` on every existing row.
+// Shared facts survive partial CSVs; deltas do not, because pairing an old
+// delta with a newly imported rank would invent ADP.
 describe('rankingFields', () => {
   const fullColumns = new Set([
     'PLAYER NAME',
@@ -29,7 +27,8 @@ describe('rankingFields', () => {
         'SOS SEASON': '3 out of 5 stars',
         'ECR VS. ADP': '-2',
       },
-      fullColumns
+      fullColumns,
+      'half'
     );
 
     expect(fields).toEqual({
@@ -40,7 +39,56 @@ describe('rankingFields', () => {
       bye_week: 10,
       sos: 3,
       ecr_vs_adp: -2,
+      ecr_vs_adp_known: true,
     });
+  });
+
+  it('writes standard rankings to the legacy ranking columns', () => {
+    const fields = rankingFields(
+      { POS: 'RB2', RK: '7', TIERS: '3', 'ECR VS. ADP': '+1' },
+      new Set(['POS', 'RK', 'TIERS', 'ECR VS. ADP']),
+      'std'
+    );
+
+    expect(fields).toEqual({
+      position_rank: 2,
+      rank: 7,
+      tier: 3,
+      ecr_vs_adp: 1,
+      ecr_vs_adp_known: true,
+    });
+  });
+
+  it('writes a full-PPR board without touching half-PPR ranking columns', () => {
+    const fields = rankingFields(
+      {
+        'PLAYER NAME': "Ja'Marr Chase",
+        TEAM: 'CIN',
+        POS: 'WR1',
+        RK: '1',
+        TIERS: '1',
+        'BYE WEEK': '10',
+        'SOS SEASON': '3 out of 5 stars',
+        'ECR VS. ADP': '-2',
+      },
+      fullColumns,
+      'ppr'
+    );
+
+    expect(fields).toEqual({
+      team: 'CIN',
+      position_rank_ppr: 1,
+      rank_ppr: 1,
+      tier_ppr: 1,
+      bye_week: 10,
+      sos: 3,
+      ecr_vs_adp_ppr: -2,
+      ecr_vs_adp_ppr_known: true,
+    });
+    expect(fields).not.toHaveProperty('position_rank');
+    expect(fields).not.toHaveProperty('rank');
+    expect(fields).not.toHaveProperty('tier');
+    expect(fields).not.toHaveProperty('ecr_vs_adp');
   });
 
   it('omits columns the CSV does not have, so an update cannot blank them', () => {
@@ -54,12 +102,13 @@ describe('rankingFields', () => {
         TIERS: '1',
         'BYE WEEK': '6',
       },
-      columns
+      columns,
+      'half'
     );
 
     expect(fields).not.toHaveProperty('sos');
-    expect(fields).not.toHaveProperty('ecr_vs_adp');
-    expect(fields).toEqual({ team: 'DET', position_rank: 1, rank: 1, tier: 1, bye_week: 6 });
+    expect(fields).toEqual({ team: 'DET', position_rank: 1, rank: 1, tier: 1, bye_week: 6,
+      ecr_vs_adp: 0, ecr_vs_adp_known: false });
   });
 
   it('still writes 0 for a present column with an empty cell', () => {
@@ -74,7 +123,8 @@ describe('rankingFields', () => {
         'SOS SEASON': '',
         'ECR VS. ADP': '',
       },
-      fullColumns
+      fullColumns,
+      'half'
     );
 
     expect(fields).toEqual({
@@ -85,6 +135,7 @@ describe('rankingFields', () => {
       bye_week: 0,
       sos: 0,
       ecr_vs_adp: 0,
+      ecr_vs_adp_known: false,
     });
   });
 });

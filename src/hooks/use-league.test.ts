@@ -17,8 +17,10 @@ vi.mock('@/lib/pb-client', () => ({
 const {
   useCommissionedLeagues,
   useDraftRole,
+  useDraftFormat,
   useIsCommissioner,
   useIsCommissionerOf,
+  useIsSnakeLeague,
   useLeague,
   useUserTeamId,
 } = await import('./use-league');
@@ -70,6 +72,35 @@ describe('league hooks', () => {
     expect(useUserTeamId()).toBe('team-b');
     expect(useIsCommissioner()).toBe(true);
     expect(mocks.useAuction).not.toHaveBeenCalled();
+  });
+
+  it('reads the selected league draft format without inferring it from paid slots', () => {
+    expect(useDraftFormat()).toBe('hybrid');
+
+    mocks.useLeagueContext.mockReturnValue({
+      ...mocks.useLeagueContext(),
+      settings: { ...DEFAULT_ROSTER_SETTINGS, paidAuctionSlots: 0 },
+      format: 'auction',
+    });
+    expect(useDraftFormat()).toBe('auction');
+
+    mocks.useLeagueContext.mockReturnValue({
+      ...mocks.useLeagueContext(),
+      format: 'snake',
+    });
+    expect(useDraftFormat()).toBe('snake');
+    expect(mocks.useAuction).not.toHaveBeenCalled();
+  });
+
+  it('gates auction chrome on the declared format, not phase state', () => {
+    expect(useIsSnakeLeague()).toBe(false);
+
+    mocks.useLeagueContext.mockReturnValue({
+      ...mocks.useLeagueContext(),
+      settings: { ...DEFAULT_ROSTER_SETTINGS, paidAuctionSlots: 0 },
+      format: 'snake',
+    });
+    expect(useIsSnakeLeague()).toBe(true);
   });
 
   it('returns every commissioned league and checks a specific league', () => {

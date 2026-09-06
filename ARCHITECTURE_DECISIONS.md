@@ -677,3 +677,122 @@ The `team_profiles` collection and its rows still exist in PocketBase but nothin
 reads or writes them; the profiles view is a read-only visualization. Dropping the
 override layer removed `applyOverrides`, `TeamProfileOverrides`, and the two
 override hooks. If manual tuning is ever wanted again, the collection is still there.
+
+## AD-28: Full-PPR rankings use temporary parallel season columns
+
+**Decision.** Keep one `player_seasons` row per player and year. Existing `rank`,
+`position_rank`, `tier`, and `ecr_vs_adp` remain the legacy board used by
+standard and half-PPR leagues; parallel nullable `*_ppr` columns hold the
+full-PPR board. Team, bye week, strength of
+schedule, and rookie status remain shared facts. Reads flatten the column set
+matching the selected league's scoring format, and rankings imports require an
+explicit Half-PPR or Full-PPR destination that matches the selected league.
+
+**Why.** Changing the uniqueness key or introducing a second ranking row would
+re-key every board, history, watchlist, draft-pick hydration, value-model, and
+import path during draft preparation. Parallel columns add the needed full-PPR
+board without making any existing query return duplicate or ambiguous season
+rows.
+
+**Consequences.** This shape is explicitly temporary. Before the 2027 rankings
+import, split season facts, format rankings, and league values into
+`player_seasons` (player + year), `player_season_rankings` (player + year +
+format), and `league_player_values` (league + player + year). Until then,
+`projected_auction_value` remains on `player_seasons` and is valid for at most one
+auction-or-hybrid league per `(year, scoring format)`; snake leagues neither
+write nor read it. Standard and Half-PPR share the legacy columns, so one
+league's import overwrites the other's board for that year — the import view
+warns, and the per-format split above ends it. The migration keeps the
+`(player_id, year)` unique index unchanged.
+
+**ADP presence (NFI-81).** ADP is derived as `rank + ecr_vs_adp` from the
+selected scoring board, never stored. PocketBase number fields default to zero,
+so `ecr_vs_adp_known` and `ecr_vs_adp_ppr_known` preserve whether the source
+actually supplied a delta. Missing columns, blank cells, and invalid deltas clear
+the selected board's delta and marker on import, rather than combining a stale
+delta with a new rank. That clearing is the one exception to "absent means leave
+alone": importing a partial CSV without a delta column wipes ADP for every player
+in that year until a full export is re-imported, and the ADP column plus the
+survival signal go blank with it. Mappers expose unknown deltas as `null`; known
+zero remains a valid comparison value. Only integer deltas count as known —
+FantasyPros deltas are whole picks, and a fractional value would be discarded as
+unknown rather than rounded, which is the safe direction. Migration backfills
+only nonzero deltas: historical zeros are ambiguous and require source reimport
+before ADP can be shown. ADP also remains unavailable for missing/invalid ranks
+or nonpositive derived values.
+
+## AD-29: League selection scopes drafts and every history-derived computation
+
+**Decision.** Draft lists, available teams, historical prices, and computed manager
+profiles are keyed and filtered by the selected league. Draft creation sends that
+league explicitly and verifies membership, commissionership for official drafts,
+and team ownership before writing. The active-draft invariant from AD-21 is now
+one active draft per **league, owner, and type**, enforced by the lifecycle action
+and a matching partial unique index.
+
+The history and value-model loaders scope official drafts **before** choosing one
+per year or synthesizing undrafted players. The unused imported-season-price
+fallback is removed: shared season rows cannot identify the source league.
+Recalculation and both value-model CLI runners share the scoped loader; both
+scripts require `--league`, including offline runs. A dump must include the league
+and team metadata needed to select its inputs and settings.
+
+External boards retain their import contract of 12 teams, a $200 budget, and seven
+paid slots. They supply comps only to auction or hybrid leagues with that exact
+shape, and never supply a league's manager profiles. Snake leagues generate no
+auction-price history or projected-price writes. The declared `draftFormat`, not
+a paid-slot heuristic, determines the format; missing settings still default to
+`hybrid` without a backfill.
+
+**Why.** A user may legitimately read multiple leagues. API authorization cannot
+stop a newer completed draft from another league displacing the intended draft
+in an unscoped same-year collapse. Query scoping prevents that corruption, while
+league-keyed caches prevent old results surviving a league switch.
+
+**Consequences.** Integration tests use a member of both leagues and completed
+official drafts in the same season, checking prices, synthesized comps, profiles,
+and member/superuser loader parity. The active-draft index change is reflected in
+both the incremental migration and the baseline. Rolling it back requires the
+older, stricter active-draft invariant to hold; rollback never ends drafts.
+
+The AD-28 storage limitation remains: there is only one projected-price column
+per player and year, not one per scoring format or league. Isolated computation
+does not make that column capable of storing multiple auction leagues' results
+at once. Supporting that requires the planned `league_player_values` split; the
+current auction-plus-snake pairing does not introduce a second price writer.
+
+## AD-30: Snake draft rooms hide auction chrome, predict survival, and draft in one click
+
+**Decision.** One predicate — `useIsSnakeLeague()`, derived from the league's
+declared `draftFormat` — gates every piece of auction chrome in a snake-format
+league: budget and max-bid summaries, team budget pressure, the nomination lane
+plus nominated-player state and its realtime subscription, price entry, inline
+auction-value editing, projected/actual price columns, the comps distribution
+and price-history sections, and the price-shaped analysis view. The draft board
+shows round and pick (`R3 · P7`) in place of price. Tier-cliff alerts carry over
+untouched. The board and watchlist flag players unlikely to survive to the
+user's next snake turn, from derived ADP and the snake rotation, with no
+prediction for players lacking ADP and no signal at all when the board carries
+no ADP data. The row and watchlist Draft buttons record the pick immediately
+for the team on the clock — no modal — preserving the two pick-entry lanes
+(commissioner any team, member own team on own turn); the pick-entry path keys
+off the format predicate (`isSnakeLeague || isSnakeMode`), never the phase
+toggle alone. Clicking an empty board cell still opens the picker modal — that
+surface chooses the player rather than confirming one, so one-click does not
+apply to it.
+
+**Why.** Every auction affordance is meaningless without prices and several are
+actively misleading ($0 budgets, blank price cells). The format predicate —
+not the phase toggle — drives the gates so hybrid snake-phase rooms keep their
+auction chrome. Survival is the format's highest-value signal: the decision is
+never "who is best" but "who will not last". One-click entry fits a 168-pick
+draft moving far faster than an auction, where the commissioner records while
+drafting.
+
+**Consequences.** Known limitation, documented not fixed: `pick_order` is
+assigned as one past the current maximum while the snake turn derives from the
+pick count, so deleting a mid-draft pick and re-entering it lands it at the end
+of the order — the count stays right but that player shows in the wrong round.
+Undoing the most recent pick is clean. Fixing the general case means
+renumbering, which touches the pick-order hook and its unique index, both
+load-bearing for the existing league's imported history.

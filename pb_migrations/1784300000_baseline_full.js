@@ -511,9 +511,9 @@ migrate((app) => {
     },
     {
       "id": "pbc_3148758976",
-      "listRule": "@request.auth.id != \"\"",
-      "viewRule": "@request.auth.id != \"\"",
-      "createRule": "@request.auth.id != \"\" && (league = \"\" || league.commissioner = @request.auth.id) && @collection.leagues.commissioner ?= @request.auth.id",
+      "listRule": "@request.auth.id != \"\" && (league.commissioner = @request.auth.id || league.league_members_via_league.user ?= @request.auth.id)",
+      "viewRule": "@request.auth.id != \"\" && (league.commissioner = @request.auth.id || league.league_members_via_league.user ?= @request.auth.id)",
+      "createRule": "@request.auth.id != \"\" && league.commissioner = @request.auth.id && @collection.leagues.commissioner ?= @request.auth.id",
       "updateRule": "league.commissioner = @request.auth.id",
       "deleteRule": "league.commissioner = @request.auth.id",
       "name": "fantasy_teams",
@@ -1005,7 +1005,7 @@ migrate((app) => {
         }
       ],
       "indexes": [
-        "CREATE UNIQUE INDEX `idx_auctions_active_user_type` ON `auctions` (`user`, `type`) WHERE status = 'active' AND user != ''"
+        "CREATE UNIQUE INDEX `idx_auctions_active_league_user_type` ON `auctions` (`league`, `user`, `type`) WHERE status = 'active' AND user != ''"
       ],
       "created": "2026-07-08 00:50:11.565Z",
       "updated": "2026-07-17 00:16:59.505Z",
@@ -1235,6 +1235,72 @@ migrate((app) => {
           "required": false,
           "system": false,
           "type": "number"
+        },
+        {
+          "hidden": false,
+          "id": "number1487500001",
+          "max": null,
+          "min": null,
+          "name": "rank_ppr",
+          "onlyInt": true,
+          "presentable": false,
+          "required": false,
+          "system": false,
+          "type": "number"
+        },
+        {
+          "hidden": false,
+          "id": "number1487500002",
+          "max": null,
+          "min": null,
+          "name": "position_rank_ppr",
+          "onlyInt": true,
+          "presentable": false,
+          "required": false,
+          "system": false,
+          "type": "number"
+        },
+        {
+          "hidden": false,
+          "id": "number1487500003",
+          "max": null,
+          "min": null,
+          "name": "tier_ppr",
+          "onlyInt": true,
+          "presentable": false,
+          "required": false,
+          "system": false,
+          "type": "number"
+        },
+        {
+          "hidden": false,
+          "id": "number1487500004",
+          "max": null,
+          "min": null,
+          "name": "ecr_vs_adp_ppr",
+          "onlyInt": true,
+          "presentable": false,
+          "required": false,
+          "system": false,
+          "type": "number"
+        },
+        {
+          "hidden": false,
+          "id": "bool1487600001",
+          "name": "ecr_vs_adp_known",
+          "presentable": false,
+          "required": false,
+          "system": false,
+          "type": "bool"
+        },
+        {
+          "hidden": false,
+          "id": "bool1487600002",
+          "name": "ecr_vs_adp_ppr_known",
+          "presentable": false,
+          "required": false,
+          "system": false,
+          "type": "bool"
         },
         {
           "hidden": false,

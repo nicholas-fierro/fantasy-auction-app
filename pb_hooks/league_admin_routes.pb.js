@@ -17,6 +17,117 @@
 // to `invite_invalid` (or `invite_claimed`) — no enumeration oracle; the
 // specific reason is server-log-only.
 
+// ---- POST /api/league-admin/create-league (authenticated app users) ----
+//
+// Rate limit: 10 creations per 15 minutes per user id. Each creation writes a
+// league plus up to 32 teams in a transaction, so a loop by any invited
+// member would inflate the instance without bound. Only validated creations
+// count — rejected input never reaches the transaction, so form retries and
+// validation probes don't consume quota. Same in-process fixed-window pattern
+// as users_login_rate_limit.pb.js.
+routerAdd("POST", "/api/league-admin/create-league", (e) => {
+  if (!e.auth || e.auth.collection().name !== "users") {
+    return e.json(401, { code: "unauthorized" });
+  }
+  const body = e.requestInfo().body || {};
+  const invalid = (message) => e.json(400, { code: "invalid_input", message });
+  const validName = (value) => typeof value === "string" && value.trim().length > 0 && value.trim().length <= 100;
+  if (!validName(body.name)) return invalid("League name must contain 1–100 characters.");
+  if (!Array.isArray(body.teamNames) || body.teamNames.length < 2 || body.teamNames.length > 32) {
+    return invalid("Choose between 2 and 32 teams.");
+  }
+  const names = [];
+  for (const name of body.teamNames) {
+    if (!validName(name)) return invalid("Every team name must contain 1–100 characters.");
+    if (names.some((other) => other.toLowerCase() === name.trim().toLowerCase())) {
+      return invalid("Team names must be unique within the league.");
+    }
+    names.push(name.trim());
+  }
+  if (!Number.isInteger(body.commissionerTeamIndex) || body.commissionerTeamIndex < 0 || body.commissionerTeamIndex >= names.length) {
+    return invalid("Choose your team.");
+  }
+  // Settings rules mirror validateRosterSettings() in src/lib/roster.ts (plus
+  // the scoring-format check, which the shared validator leaves to league
+  // context). The hook cannot import from src/ (PB JSVM), so update both when
+  // the rules change.
+  const s = body.settings;
+  if (!s || typeof s !== "object" || Array.isArray(s)) return invalid("League settings are required.");
+  if (!["auction", "hybrid", "snake"].includes(s.draftFormat)) return invalid("Choose a valid draft format.");
+  if (!["std", "half", "ppr"].includes(s.scoringFormat)) return invalid("Choose a valid scoring format.");
+  const snake = s.draftFormat === "snake";
+  if (typeof s.budget !== "number" || !Number.isFinite(s.budget) || s.budget < (snake ? 0 : 1) || s.budget > 1000000) {
+    return invalid("Budget must be between " + (snake ? 0 : 1) + " and 1000000.");
+  }
+  if (typeof s.minimumBid !== "number" || !Number.isFinite(s.minimumBid) || s.minimumBid < (snake ? 0 : 1) || s.minimumBid > 1000000) {
+    return invalid("Minimum bid must be between " + (snake ? 0 : 1) + " and 1000000.");
+  }
+  if (!Number.isInteger(s.benchSize) || s.benchSize < 0 || s.benchSize > 50) return invalid("Bench size must be an integer from 0 to 50.");
+  if (!Array.isArray(s.starterPositions) || s.starterPositions.length < 1 || s.starterPositions.length > 50 ||
+      s.starterPositions.some((p) => !["QB", "RB", "WR", "TE", "FLEX", "K", "DST"].includes(p))) {
+    return invalid("Use 1–50 starter positions: QB, RB, WR, TE, FLEX, K, DST.");
+  }
+  if (!Number.isInteger(s.paidAuctionSlots) || (snake ? s.paidAuctionSlots !== 0 : s.paidAuctionSlots < 1) ||
+      s.paidAuctionSlots > s.starterPositions.length + s.benchSize) {
+    return invalid(snake ? "Snake drafts must have zero paid slots." : "Paid slots must fit within the roster.");
+  }
+  if (s.budget < s.paidAuctionSlots * s.minimumBid) return invalid("Budget must cover every paid slot at the minimum bid.");
+
+  if (!globalThis.__createLeagueBuckets) {
+    globalThis.__createLeagueBuckets = {};
+  }
+  const now = Date.now();
+  const bucket = globalThis.__createLeagueBuckets[e.auth.id];
+  if (!bucket || now >= bucket.resetAt) {
+    globalThis.__createLeagueBuckets[e.auth.id] = { count: 1, resetAt: now + 15 * 60 * 1000 };
+  } else if (bucket.count >= 10) {
+    return e.json(429, { code: "rate_limited", message: "Too many leagues created. Try again in a few minutes." });
+  } else {
+    bucket.count += 1;
+  }
+
+  // Whitelist persisted fields. Never trust a supplied owner, relation, or id.
+  const settings = {
+    budget: s.budget, minimumBid: s.minimumBid, paidAuctionSlots: s.paidAuctionSlots,
+    benchSize: s.benchSize, starterPositions: s.starterPositions,
+    scoringFormat: s.scoringFormat, draftFormat: s.draftFormat,
+  };
+  let result;
+  try {
+    e.app.runInTransaction((txApp) => {
+      const league = new Record(txApp.findCollectionByNameOrId("leagues"));
+      league.set("name", body.name.trim());
+      league.set("commissioner", e.auth.id);
+      league.set("settings", settings);
+      txApp.save(league);
+      const teams = [];
+      for (const name of names) {
+        const team = new Record(txApp.findCollectionByNameOrId("fantasy_teams"));
+        team.set("name", name);
+        team.set("league", league.id);
+        txApp.save(team);
+        teams.push(team);
+      }
+      const member = new Record(txApp.findCollectionByNameOrId("league_members"));
+      member.set("league", league.id);
+      member.set("user", e.auth.id);
+      member.set("fantasy_team", teams[body.commissionerTeamIndex].id);
+      txApp.save(member);
+      result = {
+        league: { id: league.id, name: league.getString("name"), commissioner: e.auth.id, settings },
+        membership: {
+          id: member.id, leagueId: league.id, userId: e.auth.id,
+          fantasyTeamId: teams[body.commissionerTeamIndex].id, teamName: names[body.commissionerTeamIndex],
+        },
+      };
+    });
+  } catch (err) {
+    console.log("League creation transaction failed: " + (err && err.message));
+    return e.json(500, { code: "creation_failed", message: "Could not create the league. No changes were saved." });
+  }
+  return e.json(201, result);
+});
+
 // ---- POST /api/league-admin/signup (public) ----
 routerAdd("POST", "/api/league-admin/signup", (e) => {
   const body = e.requestInfo().body || {};

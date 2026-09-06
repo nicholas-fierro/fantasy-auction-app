@@ -162,31 +162,42 @@ normalization scale changes slightly with the smaller positive pool.
 
 ## Running it
 
+Both runners require `--league`, including offline runs. The selected league
+supplies the scoring format, team count, budget, and paid slots. Live runs need
+configured PocketBase credentials; offline runs do not.
+
 ```bash
-# preview the board without writing
-PB_SUPERUSER_EMAIL=... PB_SUPERUSER_PASSWORD=... \
-  npx tsx scripts/calc-projected-values.ts --year 2026 --dry-run --top 40
+# Preview the selected league's board without writing.
+npx tsx scripts/calc-projected-values.ts --league <league-id> --year 2026 --dry-run --top 40
 
-# write player_seasons.projected_auction_value for the year
-PB_SUPERUSER_EMAIL=... PB_SUPERUSER_PASSWORD=... \
-  npx tsx scripts/calc-projected-values.ts --year 2026
+# Write projected prices for that league's year.
+npx tsx scripts/calc-projected-values.ts --league <league-id> --year 2026
 
-# dry-run against an offline JSON dump instead of PocketBase — no creds needed
-npx tsx scripts/calc-projected-values.ts --year 2026 --dry-run --data <dump.json>
+# Preview or backtest an offline dump.
+npx tsx scripts/calc-projected-values.ts --league <league-id> --year 2026 --dry-run --data <dump.json>
+npx tsx scripts/backtest-value-model.ts --league <league-id> --data <dump.json>
 
-# walk-forward backtest (old priced-only vs new $0-augmented history)
-npx tsx scripts/backtest-value-model.ts --data <dump.json>
-# or against live PocketBase:
-PB_SUPERUSER_EMAIL=... PB_SUPERUSER_PASSWORD=... npx tsx scripts/backtest-value-model.ts
+# Backtest from PocketBase.
+npx tsx scripts/backtest-value-model.ts --league <league-id>
 ```
 
-Prerequisites: rankings for the target year already imported (the model
-estimates from `rank`/`position_rank`), and a superuser (create/delete one
-around the run with `./pocketbase superuser upsert|delete` in
-`~/Pocketbase/main`) — except with `--data`, which reads a pre-dumped JSON
-snapshot (same shape `src/server/lib/value-data.ts` loads from PocketBase) and
-needs no credentials; it's dry-run/backtest only since writes still require
-PocketBase. Reruns are safe — it overwrites only changed values.
+Rankings for the target year must already be imported. The optional
+`--scoring-format` on the price runner is an assertion against the league's
+settings, not an override. Snake leagues have no projected auction prices.
+
+Offline dumps contain `leagues`, `fantasy_teams`, `auctions`, `picks`, `seasons`,
+and `players` arrays. Include the selected league's `id` and `settings`, team
+`league` relations, and each auction's `league`, `created`, `type`, `status`, and
+`external` fields. The loader rejects missing league metadata and filters picks
+by the selected boards; a multi-league dump is safe. Old dumps without league
+provenance must be regenerated. Writes remain unavailable with `--data`, and
+live reruns update only changed values.
+
+Official history is scoped before choosing one draft per season. Compatible
+external boards remain separate observations: only auction/hybrid leagues with
+12 teams, $200 budgets, and seven paid slots admit them. Neither external boards
+nor other leagues supply manager-profile picks. Shared projected-price storage
+still supports only one auction league's results per player/year; see AD-29.
 
 The in-app **Recalculate Projected Prices** button (import view, commissioner
 only) runs this same model over the same `src/server/lib/value-data.ts`

@@ -12,11 +12,23 @@ onRecordCreateRequest((e) => {
   // helpers used by the callback must be declared inside it.
   const defaultPaidAuctionSlots = 7;
 
+  // Fail closed like the draft-picks hook: unreadable settings on an existing
+  // league row must block the write, never read as "not snake".
+  function leagueSettings(league) {
+    if (!league) return null;
+    try {
+      return JSON.parse(league.get("settings").string());
+    } catch (err) {
+      throw new Error("League settings are unreadable; refusing nomination write");
+    }
+  }
+
   function paidAuctionSlots(league) {
-    if (!league) return defaultPaidAuctionSlots;
-    const settings = league.get("settings");
-    const configured = settings && Number(settings.paidAuctionSlots);
-    return Number.isInteger(configured) && configured > 0
+    const settings = leagueSettings(league);
+    const configured = settings && settings.paidAuctionSlots != null
+      ? Number(settings.paidAuctionSlots)
+      : NaN;
+    return Number.isInteger(configured) && configured >= 0
       ? configured
       : defaultPaidAuctionSlots;
   }
@@ -142,6 +154,16 @@ onRecordCreateRequest((e) => {
   }
   // drift-guard:end currentNominatorTeamId
 
+  const auctionId = e.record.getString("auction_id");
+  const auction = e.app.findRecordById("auctions", auctionId);
+  const leagueId = auction.getString("league");
+  const league = leagueId ? e.app.findRecordById("leagues", leagueId) : null;
+  const settings = leagueSettings(league);
+  // Format is authoritative, including for commissioners and imported events.
+  if (settings && settings.draftFormat === "snake") {
+    throw new ForbiddenError("Snake drafts do not support nomination events");
+  }
+
   assignNominationPosition();
 
   if (e.hasSuperuserAuth()) {
@@ -154,10 +176,6 @@ onRecordCreateRequest((e) => {
     throw new ForbiddenError("The nomination author must match the signed-in user");
   }
 
-  const auctionId = e.record.getString("auction_id");
-  const auction = e.app.findRecordById("auctions", auctionId);
-  const leagueId = auction.getString("league");
-  const league = leagueId ? e.app.findRecordById("leagues", leagueId) : null;
   const isCommissioner = !!league && league.getString("commissioner") === authId;
   if (isCommissioner) {
     e.next();

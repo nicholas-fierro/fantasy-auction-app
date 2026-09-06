@@ -9,9 +9,9 @@ import { SnakeDraftPickModal } from '@/components/snake-draft-pick-modal';
 import { DraftPickWithDetails } from '@/server/types/draft-pick';
 import { FantasyTeam } from '@/server/types/fantasy-team';
 import { useNavigation } from '@/contexts/navigation-context';
-import { calculateCurrentSnakeTeam, getTeamRoundForPick } from '@/lib/snake-draft';
+import { calculateCurrentSnakeTeam, getSnakeRound, getTeamRoundForPick } from '@/lib/snake-draft';
 import { isUserTeam } from '@/lib/roster';
-import { useDraftRole, useLeague } from '@/hooks/use-league';
+import { useDraftRole, useIsSnakeLeague, useLeague } from '@/hooks/use-league';
 import { useMockDraft } from '@/contexts/mock-draft-context';
 import { Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
@@ -25,6 +25,10 @@ export function DraftBoard({ embedded }: { embedded?: boolean }) {
   const mockDraft = useMockDraft();
   const { canPickAnyTeam, userTeamId } = useDraftRole();
   const { settings } = useLeague();
+  const isSnakeLeague = useIsSnakeLeague();
+  // Format-level like the pick-entry path (NFI-82): clickable from pick one,
+  // even before the auto mode effect flips the phase toggle.
+  const isSnakeDraft = isSnakeLeague || isSnakeMode;
   const [snakePickModal, setSnakePickModal] = useState<{
     isOpen: boolean;
     team: FantasyTeam | null;
@@ -87,9 +91,21 @@ export function DraftBoard({ embedded }: { embedded?: boolean }) {
     );
   }, [teams, draftPicks.length, settings.paidAuctionSlots]);
 
+  // Round label that degrades to the bare pick number when the board is in a
+  // recoverable state getSnakeRound rejects: teams still loading (teamCount
+  // 0) or a league switched to snake with nonzero paid slots. A throw here
+  // would take down the whole board instead of one cell.
+  function snakeRoundLabel(pickOrder: number, teamCount: number, paidAuctionSlots: number): string {
+    try {
+      return `R${getSnakeRound(pickOrder, teamCount, paidAuctionSlots)} · P${pickOrder}`;
+    } catch {
+      return `P${pickOrder}`;
+    }
+  }
+
   // Handle cell click for snake draft
   const handleCellClick = (teamIndex: number, round: number) => {
-    if (!isSnakeMode || isReadOnly || !draftGrid) return;
+    if (!isSnakeDraft || isReadOnly || !draftGrid) return;
 
     const { sortedTeams } = draftGrid;
     const team = sortedTeams[teamIndex];
@@ -199,7 +215,7 @@ export function DraftBoard({ embedded }: { embedded?: boolean }) {
                 let cellClassName = "h-[46px]";
                 let isClickable = false;
 
-                if (isSnakeMode && !isReadOnly && !pick && team) {
+                if (isSnakeDraft && !isReadOnly && !pick && team) {
                   const teamPickCount = getTeamRoundForPick(team.id, draftPicks) - 1; // 0-based
 
                   // Check if this is the current team's next pick
@@ -227,6 +243,11 @@ export function DraftBoard({ embedded }: { embedded?: boolean }) {
                     <DraftPickCell
                       draftPick={pick || undefined}
                       className={cellClassName}
+                      roundPickLabel={
+                        isSnakeLeague && pick
+                          ? snakeRoundLabel(pick.pick_order, sortedTeams.length, settings.paidAuctionSlots)
+                          : null
+                      }
                     />
                   </div>
                 );

@@ -40,10 +40,14 @@ export function useAutoDraftMode() {
     if (teams.length === 0) return;
 
     const auctionPicksTotal = settings.paidAuctionSlots * teams.length;
-    const targetMode = draftPicks.length >= auctionPicksTotal ? 'snake' : 'auction';
+    // Auction-format leagues have no snake phase: every pick is an auction
+    // pick, so the room stays in auction mode past the paid-slot count.
+    const targetMode = settings.draftFormat === 'auction' || draftPicks.length < auctionPicksTotal
+      ? 'auction'
+      : 'snake';
 
     if (targetMode !== draftMode) {
-      if (draftMode === 'auction' && targetMode === 'snake' && !hasToastedRef.current) {
+      if (settings.draftFormat !== 'snake' && draftMode === 'auction' && targetMode === 'snake' && !hasToastedRef.current) {
         toast.info('Auction rounds complete — switching to snake draft');
         hasToastedRef.current = true;
       }

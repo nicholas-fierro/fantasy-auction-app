@@ -29,9 +29,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAuction } from '@/contexts/auction-context';
+import { useLeague } from '@/hooks/use-league';
 import {
   useImportRankings,
   useImportRookies,
@@ -39,7 +47,11 @@ import {
   useCalculateProjectedValues,
   useSyncPlayerIds,
 } from '@/hooks/use-imports';
-import type { FuzzyRow, ImportReport } from '@/server/types/import';
+import type {
+  FuzzyRow,
+  ImportReport,
+  RankingScoringFormat,
+} from '@/server/types/import';
 import { useAllPlayers } from '@/hooks/use-players';
 import { PlayerNameButton } from '@/components/player-name-button';
 
@@ -62,6 +74,12 @@ const KIND_LABEL: Record<ImportKind, string> = {
 // Order the "Import all" flow runs in: rankings create season rows, so rookies
 // and values (which need those rows) must follow.
 const KIND_ORDER: ImportKind[] = ['rankings', 'rookies', 'values'];
+
+const RANKING_FORMAT_LABELS: Record<RankingScoringFormat, string> = {
+  std: 'Standard',
+  half: 'Half-PPR',
+  ppr: 'Full-PPR',
+};
 
 // Classify a CSV by its header row (client-side sniff, mirrors the server).
 export function sniffKind(headers: string[]): ImportKind {
@@ -144,7 +162,11 @@ function KindBadge({ kind }: { kind: ImportKind }) {
 
 export function ImportView() {
   const { selectedYear } = useAuction();
+  const { league, settings } = useLeague();
+  const selectedLeagueRankingFormat = settings.scoringFormat;
   const [year, setYear] = useState<string>(String(selectedYear));
+  const [rankingFormat, setRankingFormat] =
+    useState<RankingScoringFormat>(selectedLeagueRankingFormat);
   const [files, setFiles] = useState<SniffedFile[]>([]);
   const [reports, setReports] = useState<Record<string, ImportReport>>({});
   const [isImporting, setIsImporting] = useState(false);
@@ -155,6 +177,10 @@ export function ImportView() {
   const importRankings = useImportRankings();
   const importRookies = useImportRookies();
   const importValues = useImportAuctionValues();
+
+  useEffect(() => {
+    setRankingFormat(selectedLeagueRankingFormat);
+  }, [league?.id, selectedLeagueRankingFormat]);
 
   const parsedYear = parseInt(year, 10);
   const isYearValid = !Number.isNaN(parsedYear);
@@ -201,25 +227,16 @@ export function ImportView() {
     () => files.filter((f) => f.kind !== 'unrecognized'),
     [files]
   );
-
-  const actionFor = useCallback(
-    (kind: ImportKind) => {
-      switch (kind) {
-        case 'rankings':
-          return importRankings;
-        case 'rookies':
-          return importRookies;
-        case 'values':
-          return importValues;
-        default:
-          return null;
-      }
-    },
-    [importRankings, importRookies, importValues]
-  );
+  const hasRankings = importableFiles.some((file) => file.kind === 'rankings');
+  const rankingFormatMatchesLeague = settings.scoringFormat === rankingFormat;
+  const selectedLeagueFormatLabel = RANKING_FORMAT_LABELS[settings.scoringFormat];
+  const canImport =
+    isYearValid &&
+    importableFiles.length > 0 &&
+    (!hasRankings || (!!league && rankingFormatMatchesLeague));
 
   const handleImportAll = async () => {
-    if (!isYearValid || importableFiles.length === 0) return;
+    if (!canImport) return;
     setIsImporting(true);
     try {
       // Run in dependency order: rankings -> rookies -> values.
@@ -227,10 +244,27 @@ export function ImportView() {
         (a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)
       );
       for (const sniffed of ordered) {
-        const mutation = actionFor(sniffed.kind);
-        if (!mutation) continue;
         const csvText = await sniffed.file.text();
-        const report = await mutation.mutateAsync({ year: parsedYear, csvText });
+        let report: ImportReport;
+        switch (sniffed.kind) {
+          case 'rankings':
+            if (!league) throw new Error('Select a league before importing rankings');
+            report = await importRankings.mutateAsync({
+              year: parsedYear,
+              csvText,
+              leagueId: league.id,
+              scoringFormat: rankingFormat,
+            });
+            break;
+          case 'rookies':
+            report = await importRookies.mutateAsync({ year: parsedYear, csvText });
+            break;
+          case 'values':
+            report = await importValues.mutateAsync({ year: parsedYear, csvText });
+            break;
+          default:
+            continue;
+        }
         setReports((prev) => ({ ...prev, [sniffed.id]: report }));
         // Any import can add players (step 2) and shift ranks (step 3). Step 3
         // is per-season, so remember which year needs repricing.
@@ -259,7 +293,7 @@ export function ImportView() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-end gap-3">
+          <div className="flex items-end gap-3 max-sm:flex-col max-sm:items-stretch">
             <div className="space-y-2">
               <Label htmlFor="import-year">Season year</Label>
               <Input
@@ -268,9 +302,48 @@ export function ImportView() {
                 inputMode="numeric"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
-                className={cn('w-32', !isYearValid && 'border-red-400 focus-visible:ring-red-400')}
+                className={cn('w-32 max-sm:w-full', !isYearValid && 'border-red-400 focus-visible:ring-red-400')}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="ranking-format">Rankings scoring format</Label>
+              <Select
+                value={rankingFormat}
+                onValueChange={(value) => setRankingFormat(value as RankingScoringFormat)}
+              >
+                <SelectTrigger id="ranking-format" className="w-40 max-sm:w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="std">Standard</SelectItem>
+                  <SelectItem value="half">Half-PPR</SelectItem>
+                  <SelectItem value="ppr">Full-PPR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1 text-sm" aria-live="polite">
+            <p className="text-muted-foreground">
+              Rankings destination:{' '}
+              <span className="font-medium text-foreground">
+                {RANKING_FORMAT_LABELS[rankingFormat]} {isYearValid ? parsedYear : 'season'} board
+                {league ? ` for ${league.name}` : ''}
+              </span>
+              .
+            </p>
+            {hasRankings && !rankingFormatMatchesLeague && (
+              <p className="text-red-600 dark:text-red-400">
+                Selected league uses {selectedLeagueFormatLabel} scoring. Choose its rankings
+                format or switch leagues before importing.
+              </p>
+            )}
+            {hasRankings && rankingFormat !== 'ppr' && (
+              <p className="text-amber-700 dark:text-amber-400">
+                Standard and Half-PPR share one board: importing overwrites it for every
+                league on this instance.
+              </p>
+            )}
           </div>
 
           {/* Dropzone */}
@@ -359,7 +432,7 @@ export function ImportView() {
             </div>
             <Button
               onClick={handleImportAll}
-              disabled={!isYearValid || importableFiles.length === 0 || isImporting}
+              disabled={!canImport || isImporting}
               className="min-w-32 max-md:h-11 max-md:w-full"
             >
               {isImporting ? 'Importing…' : 'Import all'}
@@ -644,13 +717,19 @@ function ProjectedValueCalculator({
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { league, settings } = useLeague();
   const calculate = useCalculateProjectedValues();
   const result = calculate.data;
 
   const handleApply = async () => {
     setError(null);
     try {
-      await calculate.mutateAsync({ year });
+      if (!league) throw new Error('Select a league before recalculating projected values');
+      await calculate.mutateAsync({
+        year,
+        leagueId: league.id,
+        scoringFormat: settings.scoringFormat,
+      });
       onCalculated(year);
     } catch (err) {
       console.error('Failed to recalculate projected values:', err);
@@ -724,7 +803,7 @@ function ProjectedValueCalculator({
           <Button
             variant="outline"
             onClick={() => setConfirmOpen(true)}
-            disabled={!isYearValid || calculate.isPending}
+            disabled={!isYearValid || !league || calculate.isPending}
             className="max-md:h-11 max-md:w-full"
           >
             {calculate.isPending ? 'Recalculating…' : `Recalculate ${isYearValid ? year : '—'}`}
@@ -735,7 +814,10 @@ function ProjectedValueCalculator({
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent variant="alert">
           <DialogHeader>
-            <DialogTitle>Recalculate projected prices for {year}?</DialogTitle>
+            <DialogTitle>
+              Recalculate {RANKING_FORMAT_LABELS[settings.scoringFormat]} projected prices for{' '}
+              {year}?
+            </DialogTitle>
             <DialogDescription>
               This replaces the Projected Price for <strong>every</strong> player in the{' '}
               {year} season, including any values you edited by hand. This cannot be undone.

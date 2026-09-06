@@ -1,5 +1,7 @@
 // Shared shapes for the in-app CSV import flow.
 
+import type { ScoringFormat } from '@/lib/fantasy-scoring';
+
 // A row from a CSV that could not be matched to a player identity (or to a
 // season row, for rookies). Surfaced in the per-file import report.
 export interface UnmatchedRow {
@@ -38,6 +40,22 @@ export interface ImportReport {
 export interface ImportInput {
   year: number;
   csvText: string;
+}
+
+export type RankingScoringFormat = ScoringFormat;
+
+export interface RankingImportCoreInput extends ImportInput {
+  scoringFormat: RankingScoringFormat;
+}
+
+export interface RankingImportInput extends RankingImportCoreInput {
+  leagueId: string;
+}
+
+export interface CalculateProjectedValuesInput {
+  year: number;
+  leagueId: string;
+  scoringFormat: RankingScoringFormat;
 }
 
 // Result of matching app players to their external provider IDs

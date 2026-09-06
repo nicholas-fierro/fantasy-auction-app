@@ -7,13 +7,16 @@ import { pb } from '@/lib/pb-client';
 import { mapPickRecord, ensureSeasonMap } from '@/lib/pb-mappers';
 import { CreateDraftPick, DraftPickWithDetails } from '@/server/types/draft-pick';
 import { useAuction } from '@/contexts/auction-context';
+import { useLeague } from '@/hooks/use-league';
 
 export function useAllDraftPicks() {
   const queryClient = useQueryClient();
   const { selectedAuctionId, selectedYear } = useAuction();
+  const { settings } = useLeague();
+  const scoringFormat = settings.scoringFormat;
 
   return useQuery({
-    queryKey: ['draft-picks', selectedAuctionId],
+    queryKey: ['draft-picks', selectedAuctionId, scoringFormat],
     queryFn: async () => {
       // Picks query and the shared season-map run in parallel.
       const [records, seasonByPlayerId] = await Promise.all([
@@ -25,7 +28,7 @@ export function useAllDraftPicks() {
         }),
         ensureSeasonMap(queryClient, selectedYear),
       ]);
-      return records.map(record => mapPickRecord(record, seasonByPlayerId.get(record.player_id)));
+      return records.map(record => mapPickRecord(record, scoringFormat, seasonByPlayerId.get(record.player_id)));
     },
     enabled: !!selectedAuctionId,
   });
@@ -33,9 +36,11 @@ export function useAllDraftPicks() {
 
 export function useDraftPick(id: string) {
   const queryClient = useQueryClient();
+  const { settings } = useLeague();
+  const scoringFormat = settings.scoringFormat;
 
   return useQuery({
-    queryKey: ['draft-pick', id],
+    queryKey: ['draft-pick', id, scoringFormat],
     queryFn: async () => {
       const record = await pb.collection('draft_picks').getOne(id, {
         expand: 'player_id,fantasy_team_id',
@@ -47,7 +52,7 @@ export function useDraftPick(id: string) {
         const seasonMap = await ensureSeasonMap(queryClient, year);
         season = seasonMap.get(record.player_id);
       }
-      return mapPickRecord(record, season);
+      return mapPickRecord(record, scoringFormat, season);
     },
     enabled: !!id,
   });
@@ -56,9 +61,11 @@ export function useDraftPick(id: string) {
 export function useDraftPicksByTeam(teamId: string) {
   const queryClient = useQueryClient();
   const { selectedAuctionId, selectedYear } = useAuction();
+  const { settings } = useLeague();
+  const scoringFormat = settings.scoringFormat;
 
   return useQuery({
-    queryKey: ['draft-picks', selectedAuctionId, 'team', teamId],
+    queryKey: ['draft-picks', selectedAuctionId, scoringFormat, 'team', teamId],
     queryFn: async () => {
       const [records, seasonByPlayerId] = await Promise.all([
         pb.collection('draft_picks').getFullList({
@@ -72,7 +79,7 @@ export function useDraftPicksByTeam(teamId: string) {
         }),
         ensureSeasonMap(queryClient, selectedYear),
       ]);
-      return records.map(record => mapPickRecord(record, seasonByPlayerId.get(record.player_id)));
+      return records.map(record => mapPickRecord(record, scoringFormat, seasonByPlayerId.get(record.player_id)));
     },
     enabled: !!selectedAuctionId && !!teamId,
   });
@@ -84,6 +91,8 @@ export function useCreateDraftPick() {
   // not the user's own activeAuction — a league member recording their pick in
   // the commissioner's live official draft doesn't own that auction.
   const { selectedAuction, isReadOnly } = useAuction();
+  const { settings } = useLeague();
+  const scoringFormat = settings.scoringFormat;
 
   return useMutation({
     mutationFn: async (values: Omit<CreateDraftPick, 'auction_id'>): Promise<DraftPickWithDetails> => {
@@ -125,7 +134,7 @@ export function useCreateDraftPick() {
       if (year != null && record.player_id) {
         season = (await ensureSeasonMap(queryClient, year)).get(record.player_id);
       }
-      return mapPickRecord(record, season);
+      return mapPickRecord(record, scoringFormat, season);
     },
     onSuccess: (newDraftPick) => {
       const auctionId = newDraftPick.auction_id;
@@ -142,14 +151,14 @@ export function useCreateDraftPick() {
       };
 
       // Update the individual draft pick cache
-      queryClient.setQueryData(['draft-pick', newDraftPick.id], newDraftPick);
+      queryClient.setQueryData(['draft-pick', newDraftPick.id, scoringFormat], newDraftPick);
 
       // Update the all draft picks cache
-      queryClient.setQueryData(['draft-picks', auctionId], upsertPick);
+      queryClient.setQueryData(['draft-picks', auctionId, scoringFormat], upsertPick);
 
       // Update the team-specific draft picks cache
       queryClient.setQueryData(
-        ['draft-picks', auctionId, 'team', newDraftPick.fantasy_team_id],
+        ['draft-picks', auctionId, scoringFormat, 'team', newDraftPick.fantasy_team_id],
         upsertPick
       );
     },
@@ -163,6 +172,8 @@ export function useCreateDraftPick() {
 export function useUpdateDraftPickPrice() {
   const queryClient = useQueryClient();
   const { isReadOnly, selectedYear } = useAuction();
+  const { settings } = useLeague();
+  const scoringFormat = settings.scoringFormat;
 
   return useMutation({
     mutationFn: async ({ id, price }: { id: string; price: number | null }): Promise<DraftPickWithDetails> => {
@@ -179,16 +190,16 @@ export function useUpdateDraftPickPrice() {
       if (record.player_id) {
         season = (await ensureSeasonMap(queryClient, selectedYear)).get(record.player_id);
       }
-      return mapPickRecord(record, season);
+      return mapPickRecord(record, scoringFormat, season);
     },
     onMutate: async ({ id, price }) => {
       await queryClient.cancelQueries({ queryKey: ['draft-picks'] });
-      await queryClient.cancelQueries({ queryKey: ['draft-pick', id] });
+      await queryClient.cancelQueries({ queryKey: ['draft-pick', id, scoringFormat] });
 
       // Snapshot every draft-picks list (all + per-team) so we can roll back,
       // then patch just the affected pick's price by id in each.
       const previousDraftPicksQueries = queryClient.getQueriesData<DraftPickWithDetails[]>({ queryKey: ['draft-picks'] });
-      const previousDraftPick = queryClient.getQueryData<DraftPickWithDetails>(['draft-pick', id]);
+      const previousDraftPick = queryClient.getQueryData<DraftPickWithDetails>(['draft-pick', id, scoringFormat]);
 
       queryClient.setQueriesData<DraftPickWithDetails[] | undefined>(
         { queryKey: ['draft-picks'] },
@@ -198,7 +209,7 @@ export function useUpdateDraftPickPrice() {
         }
       );
 
-      queryClient.setQueryData<DraftPickWithDetails | undefined>(['draft-pick', id], (oldData) => {
+      queryClient.setQueryData<DraftPickWithDetails | undefined>(['draft-pick', id, scoringFormat], (oldData) => {
         if (!oldData) return oldData;
         return { ...oldData, price };
       });
@@ -210,15 +221,15 @@ export function useUpdateDraftPickPrice() {
         queryClient.setQueryData(queryKey, data);
       });
       if (context?.previousDraftPick !== undefined) {
-        queryClient.setQueryData(['draft-pick', variables.id], context.previousDraftPick);
+        queryClient.setQueryData(['draft-pick', variables.id, scoringFormat], context.previousDraftPick);
       }
     },
     onSuccess: (updatedPick) => {
       const auctionId = updatedPick.auction_id;
 
-      queryClient.setQueryData(['draft-pick', updatedPick.id], updatedPick);
+      queryClient.setQueryData(['draft-pick', updatedPick.id, scoringFormat], updatedPick);
 
-      queryClient.setQueryData(['draft-picks', auctionId], (oldData: DraftPickWithDetails[] | undefined) => {
+      queryClient.setQueryData(['draft-picks', auctionId, scoringFormat], (oldData: DraftPickWithDetails[] | undefined) => {
         if (!oldData) return oldData;
         return oldData.map(pick => pick.id === updatedPick.id ? updatedPick : pick);
       });
@@ -229,6 +240,8 @@ export function useUpdateDraftPickPrice() {
 export function useDeleteDraftPick() {
   const queryClient = useQueryClient();
   const { selectedAuctionId, isReadOnly } = useAuction();
+  const { settings } = useLeague();
+  const scoringFormat = settings.scoringFormat;
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -239,22 +252,22 @@ export function useDeleteDraftPick() {
       await pb.collection('draft_picks').delete(id);
     },
     onMutate: async (deletedId) => {
-      await queryClient.cancelQueries({ queryKey: ['draft-picks', selectedAuctionId] });
+      await queryClient.cancelQueries({ queryKey: ['draft-picks', selectedAuctionId, scoringFormat] });
 
-      const previousAllPicks = queryClient.getQueryData<DraftPickWithDetails[]>(['draft-picks', selectedAuctionId]);
+      const previousAllPicks = queryClient.getQueryData<DraftPickWithDetails[]>(['draft-picks', selectedAuctionId, scoringFormat]);
       const previousTeamPicksQueries = queryClient.getQueriesData<DraftPickWithDetails[]>({
-        queryKey: ['draft-picks', selectedAuctionId, 'team'],
+        queryKey: ['draft-picks', selectedAuctionId, scoringFormat, 'team'],
       });
 
       // Update the all draft picks cache
-      queryClient.setQueryData(['draft-picks', selectedAuctionId], (oldData: DraftPickWithDetails[] | undefined) => {
+      queryClient.setQueryData(['draft-picks', selectedAuctionId, scoringFormat], (oldData: DraftPickWithDetails[] | undefined) => {
         if (!oldData) return oldData;
         return oldData.filter(pick => pick.id !== deletedId);
       });
 
       // Update all team-specific caches for this auction
       queryClient.setQueriesData(
-        { queryKey: ['draft-picks', selectedAuctionId, 'team'] },
+        { queryKey: ['draft-picks', selectedAuctionId, scoringFormat, 'team'] },
         (oldData: DraftPickWithDetails[] | undefined) => {
           if (!oldData) return oldData;
           return oldData.filter(pick => pick.id !== deletedId);
@@ -265,7 +278,7 @@ export function useDeleteDraftPick() {
     },
     onError: (_err, _deletedId, context) => {
       if (context?.previousAllPicks !== undefined) {
-        queryClient.setQueryData(['draft-picks', selectedAuctionId], context.previousAllPicks);
+        queryClient.setQueryData(['draft-picks', selectedAuctionId, scoringFormat], context.previousAllPicks);
       }
       context?.previousTeamPicksQueries?.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data);

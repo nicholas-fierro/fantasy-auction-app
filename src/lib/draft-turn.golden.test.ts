@@ -201,6 +201,13 @@ function unpricedPicks(count: number): NominationVector['picks'] {
 }
 
 const nominationVectors: NominationVector[] = [
+  ...[1, 11, 12, 23, 24, 167, 168].map(count => ({
+    name: `pure snake has no nominator after ${count} picks`,
+    teams: standardTeams,
+    picks: unpricedPicks(count),
+    paidAuctionSlots: 0,
+    expected: null,
+  })),
   {
     name: 'returns no nominator without auction teams',
     teams: [],
@@ -320,7 +327,20 @@ const nominationVectors: NominationVector[] = [
   },
 ];
 
+// Independent seat sequence covers all 14 pure-snake rounds and both turns.
+const pureSnakeOrder = Array.from({ length: 14 }, (_, round) =>
+  Array.from({ length: 12 }, (_, seat) => `team-${round % 2 === 0 ? seat + 1 : 12 - seat}`),
+).flat();
+
 const snakeVectors: SnakeVector[] = [
+  ...pureSnakeOrder.map((team, totalPicks) => ({
+    name: `pure snake pick ${totalPicks + 1} of 168`,
+    teams: standardTeams,
+    totalPicks,
+    paidAuctionSlots: 0,
+    expectedCurrent: team,
+    expectedNext: pureSnakeOrder[totalPicks + 1] ?? 'team-1',
+  })),
   {
     name: 'returns no snake team without auction teams',
     teams: [],
@@ -330,12 +350,12 @@ const snakeVectors: SnakeVector[] = [
     expectedNext: null,
   },
   {
-    name: 'returns no snake team for a zero slot limit',
+    name: 'pure snake starts at the first team before any picks',
     teams: configurableTeams,
     totalPicks: 0,
     paidAuctionSlots: 0,
-    expectedCurrent: null,
-    expectedNext: null,
+    expectedCurrent: 'team-1',
+    expectedNext: 'team-2',
   },
   {
     name: 'returns no snake team for a negative slot limit',

@@ -11,6 +11,9 @@ import {
   seasonMapFromRows,
 } from '@/lib/pb-mappers';
 import { useAuction } from '@/contexts/auction-context';
+import { useLeagueContext } from '@/contexts/league-context';
+import { useIsSnakeLeague, useLeague } from '@/hooks/use-league';
+import { invalidateSiblingWatchlists } from '@/hooks/use-watchlist';
 import {
   auctionNominationQueryKey,
   auctionNominationHistoryQueryKey,
@@ -34,6 +37,10 @@ type RealtimeEvent = { action: string; record: RecordModel };
 export function RealtimeSync() {
   const queryClient = useQueryClient();
   const { selectedAuction, selectedAuctionId, selectedYear } = useAuction();
+  const { settings } = useLeague();
+  const { selectedLeagueId } = useLeagueContext();
+  const isSnakeLeague = useIsSnakeLeague();
+  const scoringFormat = settings.scoringFormat;
 
   // --- realtime connection recovery (3b) ---
   // The SDK auto-reconnects and re-submits subscriptions on a dropped SSE
@@ -51,6 +58,9 @@ export function RealtimeSync() {
       void queryClient.invalidateQueries({ queryKey: ['draft-picks'] });
       void queryClient.invalidateQueries({ queryKey: ['auction-nomination'] });
       void queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+      void queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      void queryClient.invalidateQueries({ queryKey: ['fantasy-teams'] });
+      void queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
     };
 
     const previousOnDisconnect = pb.realtime.onDisconnect;
@@ -87,18 +97,22 @@ export function RealtimeSync() {
       const id = e.record.id;
 
       if (e.action === 'delete') {
-        queryClient.setQueryData<DraftPickWithDetails[]>(['draft-picks', auctionId], (old) =>
+        queryClient.setQueryData<DraftPickWithDetails[]>(['draft-picks', auctionId, scoringFormat], (old) =>
           old ? old.filter((p) => p.id !== id) : old
         );
         queryClient.setQueriesData<DraftPickWithDetails[]>(
-          { queryKey: ['draft-picks', auctionId, 'team'] },
+          { queryKey: ['draft-picks', auctionId, scoringFormat, 'team'] },
           (old) => (old ? old.filter((p) => p.id !== id) : old)
         );
         queryClient.removeQueries({ queryKey: ['draft-pick', id] });
         return;
       }
 
-      const mapped = mapPickRecord(e.record, seasonForPlayer(e.record.player_id));
+      const mapped = mapPickRecord(
+        e.record,
+        scoringFormat,
+        seasonForPlayer(e.record.player_id)
+      );
 
       const upsert = (old: DraftPickWithDetails[] | undefined): DraftPickWithDetails[] => {
         if (!old) return [mapped];
@@ -111,12 +125,12 @@ export function RealtimeSync() {
         return [...old, mapped].sort((a, b) => a.pick_order - b.pick_order);
       };
 
-      queryClient.setQueryData<DraftPickWithDetails[]>(['draft-picks', auctionId], upsert);
+      queryClient.setQueryData<DraftPickWithDetails[]>(['draft-picks', auctionId, scoringFormat], upsert);
       queryClient.setQueryData<DraftPickWithDetails[]>(
-        ['draft-picks', auctionId, 'team', mapped.fantasy_team_id],
+        ['draft-picks', auctionId, scoringFormat, 'team', mapped.fantasy_team_id],
         upsert
       );
-      queryClient.setQueryData(['draft-pick', mapped.id], mapped);
+      queryClient.setQueryData(['draft-pick', mapped.id, scoringFormat], mapped);
     };
 
     pb.collection('draft_picks')
@@ -132,34 +146,47 @@ export function RealtimeSync() {
     return () => {
       unsub?.();
     };
-  }, [selectedAuctionId, selectedYear, queryClient]);
+  }, [selectedAuctionId, selectedYear, scoringFormat, queryClient]);
 
-  // --- auctions (lifecycle of the selected draft) ---
-  // A commissioner completing the official draft is invisible to every other
-  // member without this: no pick or nomination event accompanies it, so the
-  // room would stay "live" until the next refetch. Invalidating is enough —
-  // the auctions query is one small list.
+  // League lists must refresh even on the landing page, without a selected draft.
+  // Capture the league in each callback and dispose late subscription promises
+  // so an A → B switch cannot leave A's stream attached to B's cache.
   useEffect(() => {
-    if (!selectedAuctionId) return;
-    let unsub: (() => void) | undefined;
-
-    pb.collection('auctions')
-      .subscribe(selectedAuctionId, () => {
-        void queryClient.invalidateQueries({ queryKey: ['auctions'] });
-      })
-      .then((fn) => {
-        unsub = fn;
-      })
-      .catch((err) => console.error('auctions subscribe failed:', err));
-
+    if (!selectedLeagueId) return;
+    const leagueId = selectedLeagueId;
+    let disposed = false;
+    const unsubscribe: (() => void)[] = [];
+    for (const collection of ['auctions', 'fantasy_teams'] as const) {
+      const queryKey = collection === 'auctions' ? ['auctions', leagueId] : ['fantasy-teams', leagueId];
+      const refresh = () => {
+        if (disposed) return;
+        void queryClient.invalidateQueries({ queryKey, exact: true });
+        void queryClient.invalidateQueries({ queryKey: ['historical-values', leagueId] });
+        void queryClient.invalidateQueries({ queryKey: ['computed-profiles', leagueId] });
+        if (collection === 'auctions') {
+          void queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
+        }
+      };
+      pb.collection(collection).subscribe('*', refresh, {
+        filter: pb.filter('league = {:leagueId}', { leagueId }),
+      }).then(fn => {
+        if (disposed) fn();
+        else {
+          unsubscribe.push(fn);
+          refresh();
+        }
+      }).catch(err => console.error(`${collection} subscribe failed:`, err));
+    }
     return () => {
-      unsub?.();
+      disposed = true;
+      unsubscribe.forEach(fn => fn());
     };
-  }, [selectedAuctionId, queryClient]);
+  }, [selectedLeagueId, queryClient]);
 
   // --- auction_nomination_events (shared official-auction state) ---
+  // Absent in snake-format leagues: no nominations exist, so no stream.
   useEffect(() => {
-    if (!selectedAuctionId || selectedAuction?.type !== 'official') return;
+    if (!selectedAuctionId || selectedAuction?.type !== 'official' || isSnakeLeague) return;
     const auctionId = selectedAuctionId;
     let unsub: (() => void) | undefined;
 
@@ -199,7 +226,7 @@ export function RealtimeSync() {
     return () => {
       unsub?.();
     };
-  }, [selectedAuction?.type, selectedAuctionId, queryClient]);
+  }, [selectedAuction?.type, selectedAuctionId, isSnakeLeague, queryClient]);
 
   // --- watchlist (per user; scoped by API rule) ---
   useEffect(() => {
@@ -215,14 +242,19 @@ export function RealtimeSync() {
       const id = e.record.id;
 
       if (e.action === 'delete') {
-        queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', year], (old) =>
+        queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', year, scoringFormat], (old) =>
           old ? old.filter((w) => w.id !== id) : old
         );
+        invalidateSiblingWatchlists(queryClient, year, scoringFormat);
         return;
       }
 
-      const mapped = mapWatchlistRecord(e.record, seasonForPlayer(e.record.player_id));
-      queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', year], (old) => {
+      const mapped = mapWatchlistRecord(
+        e.record,
+        scoringFormat,
+        seasonForPlayer(e.record.player_id)
+      );
+      queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', year, scoringFormat], (old) => {
         if (!old) return [mapped];
         // A create event for our own optimistic add supersedes the placeholder
         // row (id `optimistic-<playerId>`, from useAddToWatchlist) — drop it so
@@ -239,6 +271,7 @@ export function RealtimeSync() {
         }
         return [...withoutPlaceholder, mapped].sort((a, b) => a.watch_order - b.watch_order);
       });
+      invalidateSiblingWatchlists(queryClient, year, scoringFormat);
     };
 
     pb.collection('watchlist')
@@ -251,7 +284,7 @@ export function RealtimeSync() {
     return () => {
       unsub?.();
     };
-  }, [selectedYear, queryClient]);
+  }, [selectedYear, scoringFormat, queryClient]);
 
   return null;
 }

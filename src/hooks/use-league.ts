@@ -4,7 +4,7 @@ import { useAuction } from '@/contexts/auction-context';
 import { useLeagueContext } from '@/contexts/league-context';
 import type { LeagueInfo } from '@/lib/league';
 import { pb } from '@/lib/pb-client';
-import type { RosterSettings } from '@/lib/roster';
+import type { DraftFormat, RosterSettings } from '@/lib/roster';
 
 export type { LeagueInfo, LeagueMembership } from '@/lib/league';
 
@@ -15,6 +15,23 @@ export function useLeague(): {
 } {
   const { selectedLeague, settings, isCommissioner } = useLeagueContext();
   return { league: selectedLeague, settings, isCommissioner };
+}
+
+export function useDraftFormat(): DraftFormat {
+  return useLeagueContext().format;
+}
+
+// Single predicate gating every piece of auction chrome in a snake-format
+// league (NFI-82): budget/max-bid summaries, nomination UI + subscription,
+// price entry, and price columns. Derived from the league's declared draft
+// format — never from phase state (isSnakeMode) or paidAuctionSlots — so
+// hybrid snake-phase rooms keep auction chrome and the gates cannot drift
+// apart per component. Not listed: the sim's auction bid controls and the
+// watchlist market nudge need no gating — a snake league's sim never enters
+// the auction phase (zero paid slots), so those branches are structurally
+// unreachable there rather than predicate-gated.
+export function useIsSnakeLeague(): boolean {
+  return useDraftFormat() === 'snake';
 }
 
 export function useCommissionedLeagues(): LeagueInfo[] {

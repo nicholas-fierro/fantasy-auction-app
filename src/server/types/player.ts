@@ -12,7 +12,7 @@ export interface Player {
   position_rank: number;
   bye_week: number;
   sos: number;
-  ecr_vs_adp: number;
+  ecr_vs_adp: number | null;
   rank: number;
   tier: number;
   projected_auction_value: number | null;
@@ -36,7 +36,7 @@ export interface PlayerSeason {
   position_rank: number;
   bye_week: number;
   sos: number;
-  ecr_vs_adp: number;
+  ecr_vs_adp: number | null;
   rank: number;
   tier: number;
   projected_auction_value: number | null;

@@ -11,7 +11,7 @@ import {
   buildRosterFromPicks,
   type RosterSlot,
 } from '@/lib/roster';
-import { useLeague, useUserTeamId } from '@/hooks/use-league';
+import { useIsSnakeLeague, useLeague, useUserTeamId } from '@/hooks/use-league';
 
 export type RosterViewMode = 'flat' | 'slots';
 
@@ -83,6 +83,7 @@ export function TeamRosterCard({
 }: TeamRosterCardProps) {
   const userTeamId = useUserTeamId();
   const { settings } = useLeague();
+  const isSnakeLeague = useIsSnakeLeague();
 
   const isUserTeam = team.id === userTeamId;
   const rosterData = buildRosterFromPicks(draftPicks, settings);
@@ -100,7 +101,9 @@ export function TeamRosterCard({
     .sort((a, b) => (priceByPlayerId.get(b.player!.id) ?? 0) - (priceByPlayerId.get(a.player!.id) ?? 0));
   const emptySlots = allSlots.filter(slot => slot.player === null);
 
-  const subtitle = subtitleOverride ?? `${draftPicks.length} picks · Top pick $${top}`;
+  const subtitle = subtitleOverride ?? (isSnakeLeague
+    ? `${draftPicks.length} picks`
+    : `${draftPicks.length} picks · Top pick $${top}`);
 
   return (
     <Card className={cn(
@@ -174,6 +177,9 @@ export function TeamRosterCard({
 
 function RosterSlotRow({ slot, price }: { slot: RosterSlot; price: number | null }) {
   const isBenchPlayer = slot.position === 'BN';
+  // Price column hidden in snake leagues — hook call lives here (not in the
+  // parent) because both the flat and slots layouts render through this row.
+  const hidePrice = useIsSnakeLeague();
 
   if (!slot.player) {
     return (
@@ -181,7 +187,9 @@ function RosterSlotRow({ slot, price }: { slot: RosterSlot; price: number | null
         <PositionLabel position={slot.position} />
         <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-gray-400">—</span>
         <span className="text-[10px] text-gray-400">&nbsp;</span>
-        <span className="w-9 shrink-0 text-right text-xs font-bold tabular-nums text-gray-400">—</span>
+        {!hidePrice && (
+          <span className="w-9 shrink-0 text-right text-xs font-bold tabular-nums text-gray-400">—</span>
+        )}
       </div>
     );
   }
@@ -194,9 +202,11 @@ function RosterSlotRow({ slot, price }: { slot: RosterSlot; price: number | null
       {/* Line-height gives the tap target its 44px on touch without a taller row. */}
       <PlayerNameButton player={slot.player} className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-gray-800 max-md:leading-[2.75rem] dark:text-gray-200" />
       <span className="text-[10px] text-gray-400">{slot.player.team} · {slot.player.bye_week}</span>
-      <span className="w-9 shrink-0 text-right text-xs font-bold tabular-nums text-gray-700 dark:text-gray-300">
-        {price == null || price <= 0 ? '—' : `$${price}`}
-      </span>
+      {!hidePrice && (
+        <span className="w-9 shrink-0 text-right text-xs font-bold tabular-nums text-gray-700 dark:text-gray-300">
+          {price == null || price <= 0 ? '—' : `$${price}`}
+        </span>
+      )}
     </div>
   );
 }

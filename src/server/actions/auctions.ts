@@ -66,6 +66,19 @@ async function resolveLeagueId(
     }
   }
 
+  const teamIds = input.teamOrder.map(entry => entry.fantasy_team_id);
+  if (teamIds.length === 0 || new Set(teamIds).size !== teamIds.length) {
+    throw new AuctionValidationError('Select a non-empty draft order without duplicate teams');
+  }
+  const leagueTeams = await pb.collection('fantasy_teams').getFullList({
+    filter: pb.filter('league = {:leagueId}', { leagueId: input.leagueId }),
+    fields: 'id',
+  });
+  const allowedTeamIds = new Set(leagueTeams.map(team => team.id));
+  if (teamIds.some(id => !allowedTeamIds.has(id))) {
+    throw new AuctionValidationError('Every draft team must belong to the selected league');
+  }
+
   return input.leagueId;
 }
 
@@ -117,9 +130,10 @@ export async function createAuction(input: CreateAuctionInput): Promise<Auction>
     const leagueId = await resolveLeagueId(pb, userId, input);
 
     const activeRecords = await pb.collection('auctions').getFullList({
-      filter: pb.filter('status = "active" && user = {:userId} && type = {:type}', {
+      filter: pb.filter('status = "active" && user = {:userId} && type = {:type} && league = {:leagueId}', {
         userId,
         type: input.type,
+        leagueId,
       }),
     });
     if (activeRecords.length) throw activeAuctionConflict(input.type);

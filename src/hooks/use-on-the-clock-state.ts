@@ -4,7 +4,7 @@ import { useAuction } from '@/contexts/auction-context';
 import { useNavigation } from '@/contexts/navigation-context';
 import { useAllDraftPicks } from '@/hooks/use-draft-picks';
 import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
-import { useLeague, useUserTeamId } from '@/hooks/use-league';
+import { useIsSnakeLeague, useLeague, useUserTeamId } from '@/hooks/use-league';
 import { getNominatorForPick } from '@/lib/draft-turn';
 import { calculateCurrentSnakeTeam } from '@/lib/snake-draft';
 
@@ -33,10 +33,13 @@ export function useOnTheClockState(): OnTheClockState {
   const { data: teams = [] } = useAuctionTeams();
   const { settings } = useLeague();
   const userTeamId = useUserTeamId();
+  // Format-level: a snake league is always in snake turns, even before the
+  // phase toggle flips at pick 1.
+  const isSnakeLeague = useIsSnakeLeague();
 
   if (isReadOnly || !userTeamId || teams.length === 0) return IDLE_STATE;
 
-  if (isSnakeMode) {
+  if (isSnakeLeague || isSnakeMode) {
     const { currentTeam, nextTeam } = calculateCurrentSnakeTeam(
       teams,
       draftPicks.length,

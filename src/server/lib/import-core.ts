@@ -15,6 +15,8 @@ import Papa from 'papaparse';
 import type PocketBase from 'pocketbase';
 import type { RecordModel } from 'pocketbase';
 import { computeAuctionEstimates } from '@/lib/value-model';
+import { leagueValueModelConfig } from '@/lib/league-history';
+import { seasonRankingFieldName } from '@/lib/season-rankings';
 import {
   buildHistory,
   buildTargets,
@@ -24,6 +26,8 @@ import {
 import type {
   ImportReport,
   ImportInput,
+  RankingImportCoreInput,
+  RankingScoringFormat,
   CalculateProjectedResult,
 } from '@/server/types/import';
 
@@ -244,35 +248,43 @@ export function registerIdentity(index: PlayerIndex, record: RecordModel): void 
 // The season fields a rankings CSV row carries, restricted to the columns the
 // CSV actually has.
 //
-// A column that is absent is left untouched rather than written as 0. Writing
-// it would silently blank real data on every update: `sos` and `ecr_vs_adp` are
-// missing from any partial export (and from the FantasyPros page's embedded
-// `ecrData`), and both are displayed in the players table — `ecr_vs_adp` also
-// feeds src/lib/draft-comparison.ts. A column that is present but has an empty
-// cell still writes 0, which is a real value.
-export function rankingFields(row: CsvRow, columns: Set<string>): CsvRow {
+// Missing shared facts are left untouched. Delta is the exception: missing or
+// blank means unknown on this import, never a stale delta paired with a new rank.
+// Its presence marker preserves real zero despite PB's numeric zero default.
+export function rankingFields(
+  row: CsvRow,
+  columns: Set<string>,
+  scoringFormat: RankingScoringFormat
+): CsvRow {
   const fields: CsvRow = {};
   const has = (column: string) => columns.has(column);
 
   if (has('TEAM')) fields.team = getField(row, ['TEAM']);
-  if (has('POS')) fields.position_rank = parsePos(getField(row, ['POS'])).positionRank;
-  if (has('RK')) fields.rank = toInt(row['RK']);
-  if (has('TIERS')) fields.tier = toInt(row['TIERS']);
+  if (has('POS')) fields[seasonRankingFieldName('position_rank', scoringFormat)] = parsePos(getField(row, ['POS'])).positionRank;
+  if (has('RK')) fields[seasonRankingFieldName('rank', scoringFormat)] = toInt(row['RK']);
+  if (has('TIERS')) fields[seasonRankingFieldName('tier', scoringFormat)] = toInt(row['TIERS']);
   if (has('BYE WEEK')) fields.bye_week = toInt(row['BYE WEEK']);
   if (has('SOS SEASON')) fields.sos = parseSos(row['SOS SEASON']);
-  if (has('ECR VS. ADP')) fields.ecr_vs_adp = toInt(row['ECR VS. ADP']);
+  // Clear missing deltas even on updates: a previous export's delta must not
+  // be combined with this export's new rank. PB stores absent numbers as 0.
+  const deltaField = seasonRankingFieldName('ecr_vs_adp', scoringFormat);
+  const rawDelta = has('ECR VS. ADP') ? String(row['ECR VS. ADP'] ?? '').trim() : '';
+  const delta = rawDelta === '' ? NaN : Number(rawDelta);
+  const known = Number.isFinite(delta) && Number.isInteger(delta);
+  fields[deltaField] = known ? delta : 0;
+  fields[`${deltaField}_known`] = known;
 
   return fields;
 }
 
 export async function importRankingsCore(
   pb: PocketBase,
-  { year, csvText }: ImportInput
+  { year, csvText, scoringFormat }: RankingImportCoreInput
 ): Promise<ImportReport> {
   const rows = parseCsv(csvText);
   // Papa gives every row all header keys, so the first row's keys are the
-  // CSV's column set. Only columns actually present are written — see
-  // `rankingFields`.
+  // CSV's column set. Missing delta is explicitly cleared; other absent
+  // columns are preserved — see `rankingFields`.
   const columns = new Set(Object.keys(rows[0] ?? {}));
   const index = await loadPlayerIndex(pb, year);
   const report = emptyReport();
@@ -290,7 +302,7 @@ export async function importRankingsCore(
     const posRaw = getField(row, ['POS']);
     const { basePosition } = parsePos(posRaw);
 
-    const fields = rankingFields(row, columns);
+    const fields = rankingFields(row, columns, scoringFormat);
 
     const match = matchPlayer(index, name, basePosition, team);
     if (match.player === null && match.ambiguous) {
@@ -503,9 +515,12 @@ export async function importAuctionValuesCore(
 // 0, same as the CLI.
 export async function calculateProjectedValuesCore(
   pb: PocketBase,
-  year: number
+  year: number,
+  leagueId: string,
+  scoringFormat: RankingScoringFormat
 ): Promise<CalculateProjectedResult> {
-  const data = await loadFromPocketBase(pb);
+  const data = await loadFromPocketBase(pb, { leagueId, scoringFormat });
+  const config = leagueValueModelConfig(data.scope);
   const history = buildHistory(data, year);
   const targets = buildTargets(data, year);
 
@@ -515,7 +530,7 @@ export async function calculateProjectedValuesCore(
     );
   }
 
-  const estimates = computeAuctionEstimates(history, targets.map(toValueTarget), year);
+  const estimates = computeAuctionEstimates(history, targets.map(toValueTarget), year, config);
 
   const priced = targets
     .map((target) => ({ target, value: estimates.get(target.key) ?? 0 }))

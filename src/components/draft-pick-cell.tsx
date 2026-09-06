@@ -8,9 +8,11 @@ import { PlayerNameButton } from '@/components/player-name-button';
 interface DraftPickCellProps {
   draftPick?: DraftPickWithDetails;
   className?: string;
+  /** Round/pick label (e.g. "R3 · P7") shown in place of price for snake-format leagues. */
+  roundPickLabel?: string | null;
 }
 
-export function DraftPickCell({ draftPick, className }: DraftPickCellProps) {
+export function DraftPickCell({ draftPick, className, roundPickLabel }: DraftPickCellProps) {
   if (!draftPick) {
     return (
       <div className={cn(
@@ -49,10 +51,16 @@ export function DraftPickCell({ draftPick, className }: DraftPickCellProps) {
             {lastName}
           </PlayerNameButton>
         </div>
-        {auctionValue != null && (
-          <span className="shrink-0 text-[10px] font-semibold text-green-800 dark:text-green-400">
-            ${auctionValue}
+        {roundPickLabel != null ? (
+          <span className="shrink-0 text-[10px] font-semibold text-stone-500 dark:text-gray-400">
+            {roundPickLabel}
           </span>
+        ) : (
+          auctionValue != null && (
+            <span className="shrink-0 text-[10px] font-semibold text-green-800 dark:text-green-400">
+              ${auctionValue}
+            </span>
+          )
         )}
       </div>
       <div className="mt-px truncate text-[8.5px] leading-[1.3] text-stone-400 dark:text-gray-400">

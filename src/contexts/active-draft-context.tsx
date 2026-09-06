@@ -14,7 +14,7 @@ import { useNavigation } from '@/contexts/navigation-context';
 import { useLatestAuctionNomination, useCreateAuctionNominationEvent } from '@/hooks/use-auction-nomination';
 import { useAllDraftPicks } from '@/hooks/use-draft-picks';
 import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
-import { useLeague, useUserTeamId } from '@/hooks/use-league';
+import { useIsSnakeLeague, useLeague, useUserTeamId } from '@/hooks/use-league';
 import { useAllPlayers } from '@/hooks/use-players';
 import { getActiveNominationPlayerId } from '@/lib/active-nomination';
 import {
@@ -37,6 +37,10 @@ const ActiveDraftContext = createContext<ActiveDraftContextType | undefined>(und
 export function ActiveDraftProvider({ children }: { children: ReactNode }) {
   const { selectedAuction, isReadOnly } = useAuction();
   const { isSnakeMode } = useNavigation();
+  // Format-level kill switch: a snake-format league never nominates, even
+  // before the phase toggle flips. Hybrid leagues keep phase behavior.
+  const isSnakeLeague = useIsSnakeLeague();
+  const noNominations = isSnakeLeague || isSnakeMode;
   const { data: players = [] } = useAllPlayers();
   const { data: draftPicks = [] } = useAllDraftPicks();
   const { data: teams = [] } = useAuctionTeams();
@@ -61,7 +65,7 @@ export function ActiveDraftProvider({ children }: { children: ReactNode }) {
   const optimisticPlayer = pendingSharedPlayer?.auctionId === auctionId
     ? pendingSharedPlayer.player
     : undefined;
-  const activePlayer = isSnakeMode || isReadOnly
+  const activePlayer = noNominations || isReadOnly
     ? null
     : isSharedOfficialAuction
       ? optimisticPlayer === undefined ? syncedPlayer : optimisticPlayer
@@ -78,7 +82,7 @@ export function ActiveDraftProvider({ children }: { children: ReactNode }) {
       ? userId
       : latestNomination?.user ?? null
     : null;
-  const canNominate = !isReadOnly && !isSnakeMode && (
+  const canNominate = !isReadOnly && !noNominations && (
     !isSharedOfficialAuction ||
     canNominateOfficialPlayer({
       isCommissioner,
@@ -88,7 +92,7 @@ export function ActiveDraftProvider({ children }: { children: ReactNode }) {
       userId,
     })
   );
-  const canClearActivePlayer = !!activePlayer && !isReadOnly && !isSnakeMode && (
+  const canClearActivePlayer = !!activePlayer && !isReadOnly && !noNominations && (
     !isSharedOfficialAuction ||
     canClearOfficialNomination({
       isCommissioner,

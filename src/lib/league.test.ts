@@ -33,6 +33,31 @@ describe('mapLeagueRecord', () => {
     });
   });
 
+  it('defaults missing draft format to hybrid even with zero paid slots', () => {
+    const league = mapLeagueRecord({
+      id: 'league-1',
+      settings: { paidAuctionSlots: 0 },
+    } as unknown as RecordModel);
+
+    expect(league.settings.draftFormat).toBe('hybrid');
+    expect(league.settings.paidAuctionSlots).toBe(0);
+  });
+
+  it.each(['auction', 'hybrid', 'snake'])('preserves explicit %s format', (draftFormat) => {
+    const league = mapLeagueRecord({
+      id: 'league-1',
+      settings: { draftFormat, budget: 0, paidAuctionSlots: 0, minimumBid: 0 },
+    } as unknown as RecordModel);
+
+    expect(league.settings).toEqual({
+      ...DEFAULT_ROSTER_SETTINGS,
+      draftFormat,
+      budget: 0,
+      paidAuctionSlots: 0,
+      minimumBid: 0,
+    });
+  });
+
   it('falls back from unknown scoring and draft formats', () => {
     const league = mapLeagueRecord({
       id: 'league-1',

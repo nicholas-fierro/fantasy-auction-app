@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Receipt, UserPlus } from 'lucide-react';
 import { useActiveDraft } from '@/contexts/active-draft-context';
 import { useNavigation } from '@/contexts/navigation-context';
+import { useIsSnakeLeague } from '@/hooks/use-league';
 import { useAuction } from '@/contexts/auction-context';
 import { useMockDraft } from '@/contexts/mock-draft-context';
 import { Player } from '@/server/types/player';
@@ -36,7 +37,11 @@ export function PlayerActionButton({
   className
 }: PlayerActionButtonProps) {
   const { activePlayer } = useActiveDraft();
+  // Format OR phase: hybrid drafts reach snake via the phase toggle while
+  // staying a hybrid league, so the button must follow both like the
+  // pick-entry path does.
   const { isSnakeMode } = useNavigation();
+  const isSnakeDraft = useIsSnakeLeague() || isSnakeMode;
   const { isReadOnly } = useAuction();
   const mockDraft = useMockDraft();
 
@@ -68,7 +73,7 @@ export function PlayerActionButton({
     );
   }
 
-  if (isActive && !isSnakeMode) {
+  if (isActive && !isSnakeDraft) {
     if (hideWhenActive) return null;
     return (
       <Button
@@ -100,22 +105,22 @@ export function PlayerActionButton({
       size={size}
       variant="outline"
       onClick={() => onAction(player)}
-      disabled={isSnakeMode ? !canSnakeDraft : !canNominate}
+      disabled={isSnakeDraft ? !canSnakeDraft : !canNominate}
       title={
-        isSnakeMode && !canSnakeDraft
+        isSnakeDraft && !canSnakeDraft
           ? 'Wait for your draft turn'
-          : !isSnakeMode && !canNominate
+          : !isSnakeDraft && !canNominate
             ? 'Wait for your nomination turn'
             : undefined
       }
       className={cn("transition-none hover:cursor-pointer", className)}
     >
-      {isSnakeMode ?
+      {isSnakeDraft ?
         <UserPlus className="h-3 w-3" />
         :
         <Receipt className="h-3 w-3" />
       }
-      {showLabel && (isSnakeMode ? 'Draft' : 'Nominate')}
+      {showLabel && (isSnakeDraft ? 'Draft' : 'Nominate')}
     </Button>
   );
 }
