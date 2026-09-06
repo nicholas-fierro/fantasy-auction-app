@@ -703,6 +703,16 @@ auction-or-hybrid league per `(year, scoring format)`; snake leagues neither
 write nor read it. The migration keeps the `(player_id, year)` unique index
 unchanged.
 
+**ADP presence (NFI-81).** ADP is derived as `rank + ecr_vs_adp` from the
+selected scoring board, never stored. PocketBase number fields default to zero,
+so `ecr_vs_adp_known` and `ecr_vs_adp_ppr_known` preserve whether the source
+actually supplied a delta. Missing columns, blank cells, and invalid deltas clear
+the selected board's delta and marker on import, rather than combining a stale
+delta with a new rank. Mappers expose unknown deltas as `null`; known zero remains
+a valid comparison value. Migration backfills only nonzero deltas: historical
+zeros are ambiguous and require source reimport before ADP can be shown. ADP
+also remains unavailable for missing/invalid ranks or nonpositive derived values.
+
 ## AD-29: League selection scopes drafts and every history-derived computation
 
 **Decision.** Draft lists, available teams, historical prices, and computed manager

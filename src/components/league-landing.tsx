@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { CreateLeagueDialog } from '@/components/create-league-dialog';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, Crown, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -61,11 +62,12 @@ export function LeagueLanding() {
             YOUR LEAGUES
           </div>
           <h1 className="text-balance text-[32px] font-extrabold leading-[1.1] tracking-[-0.02em] text-gray-900 dark:text-white max-md:text-[26px]">
-            Choose a league
+            {leagues.length ? 'Choose a league' : 'Create your first league'}
           </h1>
           <p className="mt-3 text-pretty text-[15.5px] leading-[1.55] text-gray-500 dark:text-gray-400">
-            Pick the league whose draft room, teams, and settings you want to use.
+            {leagues.length ? 'Pick the league whose draft room, teams, and settings you want to use.' : 'Set up your teams and draft settings to get started.'}
           </p>
+          <div className="mt-4"><CreateLeagueDialog /></div>
         </div>
 
         <div className="grid grid-cols-[repeat(auto-fill,minmax(min(340px,100%),1fr))] gap-4">

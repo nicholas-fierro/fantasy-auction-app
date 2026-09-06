@@ -25,13 +25,24 @@
 onRecordCreateRequest((e) => {
   // PocketBase executes request callbacks in an isolated JSVM context, so all
   // helpers used by the callback must be declared inside it.
+  function leagueSettings(league) {
+    if (!league) return null;
+    try {
+      return JSON.parse(league.get("settings").string());
+    } catch (_) {
+      return null;
+    }
+  }
+
   function getPaidAuctionSlots(leagueId) {
     const defaultPaidAuctionSlots = 7;
     if (!leagueId) return defaultPaidAuctionSlots;
     const league = e.app.findRecordById("leagues", leagueId);
-    const settings = league.get("settings");
-    const configured = settings && Number(settings.paidAuctionSlots);
-    return Number.isInteger(configured) && configured > 0
+    const settings = leagueSettings(league);
+    const configured = settings && settings.paidAuctionSlots != null
+      ? Number(settings.paidAuctionSlots)
+      : NaN;
+    return Number.isInteger(configured) && configured >= 0
       ? configured
       : defaultPaidAuctionSlots;
   }
@@ -55,7 +66,7 @@ onRecordCreateRequest((e) => {
       0,
       { auctionId }
     );
-    if (teams.length === 0 || paidAuctionSlots <= 0) return "";
+    if (teams.length === 0 || paidAuctionSlots < 0) return "";
 
     const picks = app.findRecordsByFilter(
       "draft_picks",
@@ -77,7 +88,7 @@ onRecordCreateRequest((e) => {
   // drift-guard:end calculateCurrentSnakeTeamId
 
   function assertSnakeTurn() {
-    if (e.hasSuperuserAuth() || e.record.getFloat("price") > 0) return;
+    if (e.hasSuperuserAuth()) return;
 
     const authId = e.auth ? e.auth.getString("id") : "";
     if (!authId) return; // the collection rule returns the authentication error
@@ -87,8 +98,14 @@ onRecordCreateRequest((e) => {
     const leagueId = auction.getString("league");
     if (leagueId) {
       const league = e.app.findRecordById("leagues", leagueId);
+      const settings = leagueSettings(league);
+      // A priced payload must not bypass turn enforcement in a snake league.
+      if (settings && settings.draftFormat === "snake" && e.record.getFloat("price") !== 0) {
+        throw new ForbiddenError("Snake draft picks cannot have a price");
+      }
       if (league.getString("commissioner") === authId) return;
     }
+    if (e.record.getFloat("price") > 0) return;
 
     const expectedTeamId = calculateCurrentSnakeTeamId(
       e.app,

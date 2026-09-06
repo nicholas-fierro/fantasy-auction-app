@@ -248,12 +248,9 @@ export function registerIdentity(index: PlayerIndex, record: RecordModel): void 
 // The season fields a rankings CSV row carries, restricted to the columns the
 // CSV actually has.
 //
-// A column that is absent is left untouched rather than written as 0. Writing
-// it would silently blank real data on every update: `sos` and `ecr_vs_adp` are
-// missing from any partial export (and from the FantasyPros page's embedded
-// `ecrData`), and both are displayed in the players table — `ecr_vs_adp` also
-// feeds src/lib/draft-comparison.ts. A column that is present but has an empty
-// cell still writes 0, which is a real value.
+// Missing shared facts are left untouched. Delta is the exception: missing or
+// blank means unknown on this import, never a stale delta paired with a new rank.
+// Its presence marker preserves real zero despite PB's numeric zero default.
 export function rankingFields(
   row: CsvRow,
   columns: Set<string>,
@@ -268,7 +265,14 @@ export function rankingFields(
   if (has('TIERS')) fields[seasonRankingFieldName('tier', scoringFormat)] = toInt(row['TIERS']);
   if (has('BYE WEEK')) fields.bye_week = toInt(row['BYE WEEK']);
   if (has('SOS SEASON')) fields.sos = parseSos(row['SOS SEASON']);
-  if (has('ECR VS. ADP')) fields[seasonRankingFieldName('ecr_vs_adp', scoringFormat)] = toInt(row['ECR VS. ADP']);
+  // Clear missing deltas even on updates: a previous export's delta must not
+  // be combined with this export's new rank. PB stores absent numbers as 0.
+  const deltaField = seasonRankingFieldName('ecr_vs_adp', scoringFormat);
+  const rawDelta = has('ECR VS. ADP') ? String(row['ECR VS. ADP'] ?? '').trim() : '';
+  const delta = rawDelta === '' ? NaN : Number(rawDelta);
+  const known = Number.isFinite(delta) && Number.isInteger(delta);
+  fields[deltaField] = known ? delta : 0;
+  fields[`${deltaField}_known`] = known;
 
   return fields;
 }
@@ -279,8 +283,8 @@ export async function importRankingsCore(
 ): Promise<ImportReport> {
   const rows = parseCsv(csvText);
   // Papa gives every row all header keys, so the first row's keys are the
-  // CSV's column set. Only columns actually present are written — see
-  // `rankingFields`.
+  // CSV's column set. Missing delta is explicitly cleared; other absent
+  // columns are preserved — see `rankingFields`.
   const columns = new Set(Object.keys(rows[0] ?? {}));
   const index = await loadPlayerIndex(pb, year);
   const report = emptyReport();

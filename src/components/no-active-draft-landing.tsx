@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { CreateLeagueDialog } from '@/components/create-league-dialog';
+import { LeagueLanding } from '@/components/league-landing';
+import { useLeagueContext } from '@/contexts/league-context';
 import { ArrowRight, Dices, History, Trophy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,6 +17,7 @@ export function NoActiveDraftLanding() {
   const { accessibleActiveAuctions } = useAuction();
   const { setCurrentView, setLandingOverride, enterDraftRoom } = useNavigation();
   const isCommissioner = useIsCommissioner();
+  const { memberships } = useLeagueContext();
   const [newDraftType, setNewDraftType] = useState<'official' | 'mock'>('mock');
   const [showNewDraft, setShowNewDraft] = useState(false);
 
@@ -26,6 +30,8 @@ export function NoActiveDraftLanding() {
     setLandingOverride(false);
     setCurrentView('draft-history');
   };
+
+  if (memberships.length === 0) return <LeagueLanding />;
 
   return (
     <div className="min-h-full bg-gray-100 dark:bg-gray-900">
@@ -115,6 +121,7 @@ export function NoActiveDraftLanding() {
           </>
         )}
 
+        <div className="mb-4"><CreateLeagueDialog /></div>
         <h2 className="mb-3.5 text-[15px] font-bold text-gray-900 dark:text-white">Get started</h2>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-4">
           <Card className="gap-0 rounded-[14px] py-0 shadow-sm">

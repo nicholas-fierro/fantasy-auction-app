@@ -43,7 +43,7 @@ export function useAutoDraftMode() {
     const targetMode = draftPicks.length >= auctionPicksTotal ? 'snake' : 'auction';
 
     if (targetMode !== draftMode) {
-      if (draftMode === 'auction' && targetMode === 'snake' && !hasToastedRef.current) {
+      if (settings.draftFormat !== 'snake' && draftMode === 'auction' && targetMode === 'snake' && !hasToastedRef.current) {
         toast.info('Auction rounds complete — switching to snake draft');
         hasToastedRef.current = true;
       }

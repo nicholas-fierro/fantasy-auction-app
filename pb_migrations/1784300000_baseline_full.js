@@ -1286,6 +1286,24 @@ migrate((app) => {
         },
         {
           "hidden": false,
+          "id": "bool1487600001",
+          "name": "ecr_vs_adp_known",
+          "presentable": false,
+          "required": false,
+          "system": false,
+          "type": "bool"
+        },
+        {
+          "hidden": false,
+          "id": "bool1487600002",
+          "name": "ecr_vs_adp_ppr_known",
+          "presentable": false,
+          "required": false,
+          "system": false,
+          "type": "bool"
+        },
+        {
+          "hidden": false,
           "id": "number243487116",
           "max": null,
           "min": null,

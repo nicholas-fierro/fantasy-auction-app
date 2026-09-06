@@ -34,12 +34,13 @@ function betterLower(first: number, second: number): -1 | 0 | 1 {
 // Higher is better, and 0 is a legitimate value (ecr_vs_adp is zero or negative
 // for players going at or above their consensus rank), so unlike betterLower it
 // must participate in the comparison rather than mean "missing".
-function betterHigher(first: number, second: number): -1 | 0 | 1 {
-  if (first === second) return 0;
+function betterHigher(first: number | null, second: number | null): -1 | 0 | 1 {
+  if (first == null || second == null || !Number.isFinite(first) || !Number.isFinite(second) || first === second) return 0;
   return first > second ? -1 : 1;
 }
 
-function formatSigned(value: number): string {
+function formatSigned(value: number | null): string {
+  if (value == null) return '—';
   return `${value > 0 ? '+' : ''}${value}`;
 }
 

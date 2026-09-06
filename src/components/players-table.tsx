@@ -47,10 +47,11 @@ import { usePlayerInjuries } from '@/hooks/use-player-injuries';
 import type { PlayerInjury } from '@/lib/sleeper-injuries';
 import { useProjectedPickLines } from '@/hooks/use-projected-pick-lines';
 import type { ProjectedTeamPick } from '@/lib/snake-pick-projection';
+import { compareBoardPlayers, deriveAdp, type BoardSort } from '@/lib/adp';
 
 // Every column stays in the DOM on mobile — the low-value ones are only
-// display:none via `max-md:hidden`, so colSpan stays 13 at every width.
-const COLUMN_COUNT = 13;
+// display:none via `max-md:hidden`, so colSpan stays 14 at every width.
+const COLUMN_COUNT = 14;
 const ROW_HEIGHT_ESTIMATE = 53;
 
 type TableRowItem =
@@ -64,6 +65,11 @@ export function PlayersTable() {
   // re-rendering every other navigation consumer on each keystroke).
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [sort, setSort] = useState<BoardSort>({ column: 'rank', direction: 'asc' });
+  const toggleSort = (column: BoardSort['column']) => setSort(current => ({
+    column,
+    direction: current.column === column && current.direction === 'asc' ? 'desc' : 'asc',
+  }));
 
   const { data: players = [], isLoading, error } = useAllPlayers();
   const { data: injuryData } = usePlayerInjuries();
@@ -160,8 +166,8 @@ export function PlayersTable() {
       });
     }
 
-    return filtered;
-  }, [players, draftedPlayerIds, deferredSearchTerm, selectedPositions, showDraftedPlayers]);
+    return [...filtered].sort((a, b) => compareBoardPlayers(a, b, sort));
+  }, [players, draftedPlayerIds, deferredSearchTerm, selectedPositions, showDraftedPlayers, sort]);
 
   const handleUpdateProjected = useCallback((playerId: string, seasonId: string, value: number | null) => {
     setUpdatingPlayerId(playerId);
@@ -192,7 +198,9 @@ export function PlayersTable() {
   }, [mutateAddWatchlist, mutateRemoveWatchlist]);
 
   // Sleeper-style "your next pick" dividers, one per remaining snake turn.
-  const isFiltered = deferredSearchTerm.length > 0 || selectedPositions.size > 0;
+  // Pick dividers assume an ascending ECR board, not an ADP or reversed board.
+  const isFiltered = deferredSearchTerm.length > 0 || selectedPositions.size > 0
+    || sort.column !== 'rank' || sort.direction !== 'asc';
   const pickLines = useProjectedPickLines(filteredPlayers, draftedPlayerIds, isFiltered);
 
   // Dividers are virtualized alongside the players rather than injected around
@@ -330,9 +338,16 @@ export function PlayersTable() {
               {/* Header text sets each column's min-width in an auto-layout
                   table, so the short mobile labels are what make the subset
                   fit 375px rather than scroll. */}
-              <TableHead className="w-[100px] max-md:w-8">
-                <span className="max-md:hidden">Rank</span>
-                <span className="md:hidden">#</span>
+              <TableHead className="w-[100px] max-md:w-8" aria-sort={sort.column === 'rank' ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" onClick={() => toggleSort('rank')} className="py-2" aria-label="Sort by rank">
+                  <span className="max-md:hidden">Rank</span><span className="md:hidden">#</span>
+                  {sort.column === 'rank' && (sort.direction === 'asc' ? ' ↑' : ' ↓')}
+                </button>
+              </TableHead>
+              <TableHead className="w-[80px]" aria-sort={sort.column === 'adp' ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" onClick={() => toggleSort('adp')} className="py-2" aria-label="Sort by ADP" title="Average draft position derived from this scoring board's rank + ECR vs ADP; — means unavailable">
+                  ADP{sort.column === 'adp' && (sort.direction === 'asc' ? ' ↑' : ' ↓')}
+                </button>
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead className="max-md:hidden">Team</TableHead>
@@ -531,6 +546,7 @@ const PlayerRow = React.memo(React.forwardRef<HTMLTableRowElement, PlayerRowProp
       )}
     >
       <TableCell className="font-medium">{player.rank}</TableCell>
+      <TableCell className="tabular-nums">{deriveAdp(player.rank, player.ecr_vs_adp) ?? '—'}</TableCell>
       {/* max-w on the cell is what actually lets the name truncate: in an
           auto-layout table the column is otherwise sized to its content's
           min-width, and `truncate` alone never kicks in. */}
@@ -633,13 +649,13 @@ const PlayerRow = React.memo(React.forwardRef<HTMLTableRowElement, PlayerRowProp
         )}
       </TableCell>
       <TableCell className="text-center max-md:hidden">
-        <span className={`font-medium ${player.ecr_vs_adp > 0
+        <span className={`font-medium ${(player.ecr_vs_adp ?? 0) > 0
           ? 'text-green-600'
-          : player.ecr_vs_adp < 0
+          : (player.ecr_vs_adp ?? 0) < 0
             ? 'text-red-600'
             : 'text-gray-600'
           }`}>
-          {player.ecr_vs_adp > 0 ? '+' : ''}{player.ecr_vs_adp}
+          {(player.ecr_vs_adp ?? 0) > 0 ? '+' : ''}{player.ecr_vs_adp ?? '—'}
         </span>
       </TableCell>
       <TableCell className="sticky right-0 z-10 bg-background shadow-[inset_1px_0_0_0_var(--border)]">

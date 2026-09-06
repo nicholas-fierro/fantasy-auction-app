@@ -30,7 +30,7 @@ export function getSnakeRound(
   teamCount = DEFAULT_TEAM_COUNT,
   paidAuctionSlots = DEFAULT_PAID_AUCTION_SLOTS,
 ): number {
-  if (teamCount <= 0 || paidAuctionSlots <= 0) {
+  if (teamCount <= 0 || paidAuctionSlots < 0) {
     throw new Error('Team count and paid auction slots must define a valid draft');
   }
   if (isAuctionPick(pickOrder, teamCount, paidAuctionSlots)) {
@@ -61,7 +61,7 @@ export function calculateCurrentSnakeTeam(
   paidAuctionSlots = DEFAULT_PAID_AUCTION_SLOTS,
 ): SnakeTeamQueue {
   const teamCount = teams.length;
-  if (teamCount === 0 || paidAuctionSlots <= 0) {
+  if (teamCount === 0 || paidAuctionSlots < 0) {
     return { currentTeam: null, nextTeam: null };
   }
   if (totalPicks < paidAuctionSlots * teamCount) {

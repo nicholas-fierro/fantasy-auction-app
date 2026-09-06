@@ -106,11 +106,11 @@ function useHeaderActions(onEndDraft: () => void) {
 
   const actions: HeaderAction[] = [];
 
-  if (memberships.length > 1 && landingStage !== 'league') {
+  if (landingStage !== 'league') {
     actions.push({
       id: 'switch-league',
       icon: ArrowLeftRight,
-      label: 'Switch League',
+      label: memberships.length > 1 ? 'Switch League' : 'Manage Leagues',
       onSelect: returnToLeagueLanding,
     });
   }

@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import PocketBase, { ClientResponseError, type CollectionModel, type RecordModel } from 'pocketbase';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { importRankingsCore } from '@/server/lib/import-core';
+import { deriveAdp } from '@/lib/adp';
+import { mapSeasonToPlayer } from '@/lib/pb-mappers';
 
 function env(name: string): string {
   const value = process.env[name];
@@ -371,6 +373,35 @@ describe('player season ranking boards', () => {
   });
 });
 
+describe('ranking delta presence roundtrip', () => {
+  it.each(['half', 'ppr'] as const)('keeps real zero and clears absent delta on %s imports', async (scoringFormat) => {
+    const year = scoringFormat === 'half' ? 2036 : 2037;
+    const record = await admin.collection('player_seasons').create({
+      player_id: fixture.players[0].id, year,
+    });
+    const field = scoringFormat === 'ppr' ? 'ecr_vs_adp_ppr' : 'ecr_vs_adp';
+    try {
+      // PB serializes an omitted numeric value as zero, not null.
+      expect(record[field]).toBe(0);
+      expect(record[`${field}_known`]).toBe(false);
+      expect(mapSeasonToPlayer(record, scoringFormat).ecr_vs_adp).toBeNull();
+      for (const delta of ['0', '+5', '', undefined]) {
+        const csvText = delta === undefined
+          ? 'RK,PLAYER NAME,TEAM,POS\n20,Integration Player 1,TEST,RB2'
+          : `RK,PLAYER NAME,TEAM,POS,ECR VS. ADP\n20,Integration Player 1,TEST,RB2,${delta}`;
+        await importRankingsCore(admin, { year, csvText, scoringFormat });
+        const stored = await admin.collection('player_seasons').getOne(record.id);
+        const known = delta === '0' || delta === '+5';
+        expect(stored[`${field}_known`]).toBe(known);
+        const player = mapSeasonToPlayer(stored, scoringFormat);
+        expect(deriveAdp(player.rank, player.ecr_vs_adp)).toBe(known ? 20 + Number(delta) : null);
+      }
+    } finally {
+      await admin.collection('player_seasons').delete(record.id);
+    }
+  });
+});
+
 describe('player game logs', () => {
   it('allows authenticated reads while keeping writes superuser-only', async () => {
     const payload = {
@@ -435,6 +466,69 @@ describe('PocketBase hooks', () => {
     await clientB.collection('draft_picks').create({
       auction_id: auction.id, fantasy_team_id: team.id, player_id: players[1].id, price: 1,
     }, { requestKey: null });
+    expect((await admin.collection('auctions').getOne(auction.id)).status).toBe('completed');
+  });
+
+  it('runs a zero-slot snake from pick one, reverses rounds, and rejects nominations', async () => {
+    const { clientA, clientB, userA, userB, players } = fixture;
+    const league = await admin.collection('leagues').create({
+      name: 'Pure Snake Hook League', commissioner: userA.id,
+      settings: { draftFormat: 'snake', paidAuctionSlots: 0, budget: 0, minimumBid: 0,
+        starterPositions: ['QB'], benchSize: 2 },
+    });
+    const teamA = await admin.collection('fantasy_teams').create({ name: 'Snake A', league: league.id });
+    const teamB = await admin.collection('fantasy_teams').create({ name: 'Snake B', league: league.id });
+    await admin.collection('league_members').create({ league: league.id, user: userB.id, fantasy_team: teamB.id });
+    const auction = await admin.collection('auctions').create({
+      name: 'Pure Snake Hook Draft', year: 2026, status: 'active', type: 'official',
+      user: userA.id, league: league.id,
+    });
+    for (const [index, team] of [teamB, teamA].entries()) {
+      await admin.collection('auction_teams').create({
+        auction_id: auction.id, fantasy_team_id: team.id, draft_order: index + 1,
+      });
+    }
+
+    // Reject by stored format, not merely because zero slots yield no nominator.
+    // Even a stale nonzero slot value cannot reopen nominations for a commissioner.
+    for (const paidAuctionSlots of [0, 7]) {
+      await admin.collection('leagues').update(league.id, {
+        settings: { ...league.settings, paidAuctionSlots },
+      });
+      for (const [client, user] of [[clientA, userA], [clientB, userB], [admin, userA]] as const) {
+        for (const action of ['nominate', 'clear']) {
+          await expectApiFailure(client.collection('auction_nomination_events').create({
+            auction_id: auction.id, player_id: action === 'nominate' ? players[0].id : '',
+            user: user.id, action,
+          }), [403]);
+        }
+      }
+    }
+    await admin.collection('leagues').update(league.id, { settings: league.settings });
+    expect(await admin.collection('auction_nomination_events').getFullList({
+      filter: admin.filter('auction_id = {:id}', { id: auction.id }),
+    })).toHaveLength(0);
+
+    const order = [teamB, teamA, teamA, teamB, teamB, teamA];
+    for (const [index, team] of order.entries()) {
+      for (const client of [clientA, clientB]) {
+        await expectApiFailure(client.collection('draft_picks').create({
+          auction_id: auction.id, fantasy_team_id: teamB.id, player_id: players[index].id, price: 1,
+        }), [403]);
+      }
+      if (team.id !== teamB.id) {
+        await expectApiFailure(clientB.collection('draft_picks').create({
+          auction_id: auction.id, fantasy_team_id: teamB.id, player_id: players[index].id, price: 0,
+        }), [403]);
+      }
+      const client = team.id === teamB.id ? clientB : clientA;
+      const pick = await client.collection('draft_picks').create({
+        auction_id: auction.id, fantasy_team_id: team.id, player_id: players[index].id,
+        price: 0, pick_order: 999,
+      });
+      expect(pick.pick_order).toBe(index + 1);
+      expect(pick.price).toBe(0);
+    }
     expect((await admin.collection('auctions').getOne(auction.id)).status).toBe('completed');
   });
 

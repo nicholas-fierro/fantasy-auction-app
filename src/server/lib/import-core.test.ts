@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeName, rankingFields } from '@/server/lib/import-core';
 
-// The FantasyPros CSV export carries every column; partial sources (a hand-made
-// CSV, or the cheat-sheet page's embedded ecrData) do not. An absent column must
-// be left alone rather than written as 0 — writing it blanks `sos` /
-// `ecr_vs_adp` on every existing row.
+// Shared facts survive partial CSVs; deltas do not, because pairing an old
+// delta with a newly imported rank would invent ADP.
 describe('rankingFields', () => {
   const fullColumns = new Set([
     'PLAYER NAME',
@@ -40,6 +38,7 @@ describe('rankingFields', () => {
       bye_week: 10,
       sos: 3,
       ecr_vs_adp: -2,
+      ecr_vs_adp_known: true,
     });
   });
 
@@ -55,6 +54,7 @@ describe('rankingFields', () => {
       rank: 7,
       tier: 3,
       ecr_vs_adp: 1,
+      ecr_vs_adp_known: true,
     });
   });
 
@@ -82,6 +82,7 @@ describe('rankingFields', () => {
       bye_week: 10,
       sos: 3,
       ecr_vs_adp_ppr: -2,
+      ecr_vs_adp_ppr_known: true,
     });
     expect(fields).not.toHaveProperty('position_rank');
     expect(fields).not.toHaveProperty('rank');
@@ -104,8 +105,8 @@ describe('rankingFields', () => {
     );
 
     expect(fields).not.toHaveProperty('sos');
-    expect(fields).not.toHaveProperty('ecr_vs_adp');
-    expect(fields).toEqual({ team: 'DET', position_rank: 1, rank: 1, tier: 1, bye_week: 6 });
+    expect(fields).toEqual({ team: 'DET', position_rank: 1, rank: 1, tier: 1, bye_week: 6,
+      ecr_vs_adp: 0, ecr_vs_adp_known: false });
   });
 
   it('still writes 0 for a present column with an empty cell', () => {
@@ -131,6 +132,7 @@ describe('rankingFields', () => {
       bye_week: 0,
       sos: 0,
       ecr_vs_adp: 0,
+      ecr_vs_adp_known: false,
     });
   });
 });

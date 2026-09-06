@@ -7,7 +7,7 @@ import { WatchlistWithDetails } from '@/server/types/watchlist';
 import { Auction } from '@/server/types/auction';
 import { PlayerGameLog } from '@/server/types/player-game-log';
 import type { GameLogStats, ScoringFormat } from '@/lib/fantasy-scoring';
-import { seasonRankingValue } from '@/lib/season-rankings';
+import { seasonEcrVsAdpValue, seasonRankingValue } from '@/lib/season-rankings';
 
 // Client-safe mapping logic shared by the direct-SDK read hooks. Ported verbatim
 // from the (deleted) server actions so the returned shapes are byte-for-byte
@@ -31,7 +31,7 @@ export function mapSeasonToPlayer(
     position_rank: seasonRankingValue(record, 'position_rank', scoringFormat),
     bye_week: record.bye_week,
     sos: record.sos,
-    ecr_vs_adp: seasonRankingValue(record, 'ecr_vs_adp', scoringFormat),
+    ecr_vs_adp: seasonEcrVsAdpValue(record, scoringFormat),
     rank: seasonRankingValue(record, 'rank', scoringFormat),
     tier: seasonRankingValue(record, 'tier', scoringFormat),
     projected_auction_value: record.projected_auction_value > 0 ? record.projected_auction_value : null,
@@ -57,7 +57,7 @@ export function mapSeasonRecord(
     position_rank: seasonRankingValue(record, 'position_rank', scoringFormat),
     bye_week: record.bye_week,
     sos: record.sos,
-    ecr_vs_adp: seasonRankingValue(record, 'ecr_vs_adp', scoringFormat),
+    ecr_vs_adp: seasonEcrVsAdpValue(record, scoringFormat),
     rank: seasonRankingValue(record, 'rank', scoringFormat),
     tier: seasonRankingValue(record, 'tier', scoringFormat),
     projected_auction_value: record.projected_auction_value > 0 ? record.projected_auction_value : null,
@@ -116,8 +116,8 @@ export function mapPickRecord(
       bye_week: season?.bye_week ?? p?.bye_week,
       sos: season?.sos ?? p?.sos,
       ecr_vs_adp: season
-        ? seasonRankingValue(season, 'ecr_vs_adp', scoringFormat)
-        : p?.ecr_vs_adp,
+        ? seasonEcrVsAdpValue(season, scoringFormat)
+        : null,
       rank: season ? seasonRankingValue(season, 'rank', scoringFormat) : p?.rank,
       tier: season ? seasonRankingValue(season, 'tier', scoringFormat) : p?.tier,
       projected_auction_value: season
@@ -173,8 +173,8 @@ export function mapWatchlistRecord(
         : p?.position_rank,
       sos: season?.sos ?? p?.sos,
       ecr_vs_adp: season
-        ? seasonRankingValue(season, 'ecr_vs_adp', scoringFormat)
-        : p?.ecr_vs_adp,
+        ? seasonEcrVsAdpValue(season, scoringFormat)
+        : null,
       projected_auction_value: season
         ? (season.projected_auction_value > 0 ? season.projected_auction_value : null)
         : p?.projected_auction_value,
