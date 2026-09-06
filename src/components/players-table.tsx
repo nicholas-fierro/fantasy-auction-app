@@ -470,7 +470,7 @@ export function PlayersTable() {
                       watchlistItemId={watchlistItemId}
                       isSnakeLeague={isSnakeLeague}
                       showSurvival={showSurvival}
-                      survival={showSurvival
+                      survival={showSurvival && !draftedPlayerIds.has(player.id)
                         ? isExpectedGoneBeforeNextTurn(player, picksAway, draftPicks.length + 1)
                         : null}
                       onAction={playerActions.handlePlayerAction}

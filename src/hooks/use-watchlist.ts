@@ -1,12 +1,28 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { pb } from '@/lib/pb-client';
 import { mapWatchlistRecord, ensureSeasonMap } from '@/lib/pb-mappers';
 import { Watchlist, WatchlistWithDetails, UpdateWatchlistOrderData } from '@/server/types/watchlist';
 import { Player } from '@/server/types/player';
 import { useAuction } from '@/contexts/auction-context';
 import { useLeague } from '@/hooks/use-league';
+
+// Watchlist rows are shared per user but cached per (year, scoringFormat).
+// A write through one format's key leaves sibling formats stale within their
+// freshness window, so every write path refetches the siblings after patching
+// the current key.
+export function invalidateSiblingWatchlists(
+  queryClient: QueryClient,
+  year: number,
+  scoringFormat: string
+): void {
+  for (const query of queryClient.getQueryCache().findAll({ queryKey: ['watchlist', year] })) {
+    if (query.queryKey[2] !== scoringFormat) {
+      void queryClient.invalidateQueries({ queryKey: query.queryKey });
+    }
+  }
+}
 
 export function useWatchlist() {
   const queryClient = useQueryClient();
@@ -137,6 +153,10 @@ export function useAddToWatchlist() {
             : item
         );
       });
+      invalidateSiblingWatchlists(queryClient, selectedYear, scoringFormat);
+    },
+    onSettled: () => {
+      invalidateSiblingWatchlists(queryClient, selectedYear, scoringFormat);
     },
   });
 }
@@ -167,6 +187,9 @@ export function useRemoveFromWatchlist() {
       if (context?.previousWatchlist !== undefined) {
         queryClient.setQueryData(['watchlist', selectedYear, scoringFormat], context.previousWatchlist);
       }
+    },
+    onSettled: () => {
+      invalidateSiblingWatchlists(queryClient, selectedYear, scoringFormat);
     },
   });
 }

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Receipt, UserPlus } from 'lucide-react';
 import { useActiveDraft } from '@/contexts/active-draft-context';
+import { useNavigation } from '@/contexts/navigation-context';
 import { useIsSnakeLeague } from '@/hooks/use-league';
 import { useAuction } from '@/contexts/auction-context';
 import { useMockDraft } from '@/contexts/mock-draft-context';
@@ -36,7 +37,11 @@ export function PlayerActionButton({
   className
 }: PlayerActionButtonProps) {
   const { activePlayer } = useActiveDraft();
-  const isSnakeDraft = useIsSnakeLeague();
+  // Format OR phase: hybrid drafts reach snake via the phase toggle while
+  // staying a hybrid league, so the button must follow both like the
+  // pick-entry path does.
+  const { isSnakeMode } = useNavigation();
+  const isSnakeDraft = useIsSnakeLeague() || isSnakeMode;
   const { isReadOnly } = useAuction();
   const mockDraft = useMockDraft();
 

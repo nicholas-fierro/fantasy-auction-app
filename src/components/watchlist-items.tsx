@@ -341,7 +341,7 @@ export function WatchlistItems({ filter, selectedPositions }: WatchlistItemsProp
                 item={item}
                 isDrafted={isDrafted}
                 price={priceByPlayerId.get(item.player_id) ?? null}
-                survival={showSurvival
+                survival={showSurvival && !isDrafted
                   ? isExpectedGoneBeforeNextTurn(item.player, picksAway, currentOverall)
                   : null}
                 playerActions={playerActions}
