@@ -29,15 +29,15 @@ describe('derived ADP', () => {
     expect(mapSeasonToPlayer({ ...base, ecr_vs_adp_ppr_known: false }, 'ppr').ecr_vs_adp).toBeNull();
   });
   it.each([false, undefined])('does not treat unproven zero as known (%s)', known => {
-    expect(mapSeasonRecord({ ...base, ecr_vs_adp: 0, ecr_vs_adp_known: known }).ecr_vs_adp).toBeNull();
+    expect(mapSeasonRecord({ ...base, ecr_vs_adp: 0, ecr_vs_adp_known: known }, 'half').ecr_vs_adp).toBeNull();
   });
   it.each([null, undefined, NaN, Infinity, '0'])('rejects invalid marked-known storage (%s)', delta => {
-    expect(mapSeasonRecord({ ...base, ecr_vs_adp: delta }).ecr_vs_adp).toBeNull();
+    expect(mapSeasonRecord({ ...base, ecr_vs_adp: delta }, 'half').ecr_vs_adp).toBeNull();
   });
   it('preserves missing delta in hydrated watchlist and picks', () => {
     const season = { ...base, ecr_vs_adp_ppr_known: false };
-    expect(mapPickRecord(base, season, 'ppr').player.ecr_vs_adp).toBeNull();
-    expect(mapWatchlistRecord(base, season, 'ppr').player.ecr_vs_adp).toBeNull();
+    expect(mapPickRecord(base, 'ppr', season).player.ecr_vs_adp).toBeNull();
+    expect(mapWatchlistRecord(base, 'ppr', season).player.ecr_vs_adp).toBeNull();
   });
 });
 
@@ -82,7 +82,7 @@ describe('board sorting', () => {
 });
 
 it('does not award a delta comparison edge to unknown data', () => {
-  const first = { ...mapSeasonToPlayer(base), id: 'first', ecr_vs_adp: null };
+  const first = { ...mapSeasonToPlayer(base, 'half'), id: 'first', ecr_vs_adp: null };
   const second = { ...first, id: 'second', ecr_vs_adp: -3 };
   expect(buildLocalDraftComparison([first, second]).reasons.some(reason => reason.label === 'ECR vs. ADP')).toBe(false);
 });

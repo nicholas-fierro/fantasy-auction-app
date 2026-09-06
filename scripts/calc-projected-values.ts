@@ -26,9 +26,11 @@
 // writes need PocketBase).
 
 import PocketBase from 'pocketbase';
+import { readFileSync } from 'node:fs';
 import { DEFAULT_VALUE_MODEL_CONFIG, computeAuctionEstimates } from '../src/lib/value-model';
+import { mapLeagueRecord } from '../src/lib/league';
 import { isScoringFormat, type ScoringFormat } from '../src/lib/fantasy-scoring';
-import { leagueValueModelConfig } from '../src/lib/league-history';
+import { leagueValueModelConfig, loadLeagueHistoryScope } from '../src/lib/league-history';
 import {
   buildHistory,
   buildTargets,
@@ -40,6 +42,15 @@ import {
 
 const POCKETBASE_URL = process.env.POCKETBASE_URL || 'http://127.0.0.1:8090';
 const WRITE_BATCH_SIZE = 25;
+
+// Offline dumps carry league metadata; read the league's own board when the
+// flag is omitted, mirroring the live path below.
+function dumpLeagueFormat(path: string, leagueId: string): ScoringFormat {
+  const raw = JSON.parse(readFileSync(path, 'utf8')) as { leagues?: Array<{ id: string }> };
+  const league = raw.leagues?.find((row) => row.id === leagueId);
+  if (!league) throw new Error('The dump must include the selected league and fantasy_teams metadata');
+  return mapLeagueRecord(league as never).settings.scoringFormat;
+}
 
 interface CliArgs {
   leagueId: string;
@@ -87,10 +98,13 @@ function parseArgs(argv: string[]): CliArgs {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
+  // An omitted --scoring-format prices the league's own board. The format is
+  // resolved explicitly here so the loaders always receive a required value.
   let pb: PocketBase | null = null;
   let data: ValueData;
   if (args.data) {
-    data = loadFromDump(args.data, { leagueId: args.leagueId, scoringFormat: args.scoringFormat });
+    const scoringFormat = args.scoringFormat ?? dumpLeagueFormat(args.data, args.leagueId);
+    data = loadFromDump(args.data, { leagueId: args.leagueId, scoringFormat });
     console.log(`data: offline dump ${args.data}`);
   } else {
     pb = new PocketBase(POCKETBASE_URL);
@@ -100,7 +114,9 @@ async function main(): Promise<void> {
       throw new Error('PB_SUPERUSER_EMAIL and PB_SUPERUSER_PASSWORD are required');
     }
     await pb.collection('_superusers').authWithPassword(email, password);
-    data = await loadFromPocketBase(pb, { leagueId: args.leagueId, scoringFormat: args.scoringFormat });
+    const scoringFormat = args.scoringFormat
+      ?? (await loadLeagueHistoryScope(pb, args.leagueId)).settings.scoringFormat;
+    data = await loadFromPocketBase(pb, { leagueId: args.leagueId, scoringFormat });
   }
 
   const config = { ...leagueValueModelConfig(data.scope), externalWeight: args.externalWeight };

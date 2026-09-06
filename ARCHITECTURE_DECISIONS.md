@@ -700,8 +700,10 @@ import, split season facts, format rankings, and league values into
 format), and `league_player_values` (league + player + year). Until then,
 `projected_auction_value` remains on `player_seasons` and is valid for at most one
 auction-or-hybrid league per `(year, scoring format)`; snake leagues neither
-write nor read it. The migration keeps the `(player_id, year)` unique index
-unchanged.
+write nor read it. Standard and Half-PPR share the legacy columns, so one
+league's import overwrites the other's board for that year — the import view
+warns, and the per-format split above ends it. The migration keeps the
+`(player_id, year)` unique index unchanged.
 
 **ADP presence (NFI-81).** ADP is derived as `rank + ecr_vs_adp` from the
 selected scoring board, never stored. PocketBase number fields default to zero,

@@ -96,8 +96,8 @@ export interface PricedPick {
 
 // --- Sources -------------------------------------------------------------
 
-function assertScoringFormat(scope: LeagueHistoryScope, scoringFormat?: ScoringFormat): void {
-  if (scoringFormat && scoringFormat !== scope.settings.scoringFormat) {
+function assertScoringFormat(scope: LeagueHistoryScope, scoringFormat: ScoringFormat): void {
+  if (scoringFormat !== scope.settings.scoringFormat) {
     throw new Error(`Selected league uses ${scope.settings.scoringFormat}, not ${scoringFormat}`);
   }
 }
@@ -127,7 +127,7 @@ function normalizeSeason(row: RecordModel, scoringFormat: ScoringFormat): RawSea
 
 export async function loadFromPocketBase(
   pb: PocketBase,
-  options: { leagueId: string; scoringFormat?: ScoringFormat }
+  options: { leagueId: string; scoringFormat: ScoringFormat }
 ): Promise<ValueData> {
   const scope = await loadLeagueHistoryScope(pb, options.leagueId);
   assertScoringFormat(scope, options.scoringFormat);
@@ -164,7 +164,7 @@ export async function loadFromPocketBase(
 // Offline dumps may span leagues; apply the same board selection as live reads.
 export function loadFromDump(
   path: string,
-  options: { leagueId: string; scoringFormat?: ScoringFormat }
+  options: { leagueId: string; scoringFormat: ScoringFormat }
 ): ValueData {
   requireLeagueId(options.leagueId);
   const raw = JSON.parse(readFileSync(path, 'utf8')) as {
