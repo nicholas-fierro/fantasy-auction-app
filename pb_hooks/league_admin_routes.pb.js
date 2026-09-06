@@ -19,25 +19,15 @@
 
 // ---- POST /api/league-admin/create-league (authenticated app users) ----
 //
-// Rate limit: 5 creations per 15 minutes per user id. Each call writes a
-// league plus up to 32 teams in a transaction, so an unauthenticated-style
-// loop by any invited member would inflate the instance without bound.
-// Same in-process fixed-window pattern as users_login_rate_limit.pb.js.
+// Rate limit: 10 creations per 15 minutes per user id. Each creation writes a
+// league plus up to 32 teams in a transaction, so a loop by any invited
+// member would inflate the instance without bound. Only validated creations
+// count — rejected input never reaches the transaction, so form retries and
+// validation probes don't consume quota. Same in-process fixed-window pattern
+// as users_login_rate_limit.pb.js.
 routerAdd("POST", "/api/league-admin/create-league", (e) => {
   if (!e.auth || e.auth.collection().name !== "users") {
     return e.json(401, { code: "unauthorized" });
-  }
-  if (!globalThis.__createLeagueBuckets) {
-    globalThis.__createLeagueBuckets = {};
-  }
-  const now = Date.now();
-  const bucket = globalThis.__createLeagueBuckets[e.auth.id];
-  if (!bucket || now >= bucket.resetAt) {
-    globalThis.__createLeagueBuckets[e.auth.id] = { count: 1, resetAt: now + 15 * 60 * 1000 };
-  } else if (bucket.count >= 5) {
-    return e.json(429, { code: "rate_limited", message: "Too many leagues created. Try again in a few minutes." });
-  } else {
-    bucket.count += 1;
   }
   const body = e.requestInfo().body || {};
   const invalid = (message) => e.json(400, { code: "invalid_input", message });
@@ -82,6 +72,19 @@ routerAdd("POST", "/api/league-admin/create-league", (e) => {
     return invalid(snake ? "Snake drafts must have zero paid slots." : "Paid slots must fit within the roster.");
   }
   if (s.budget < s.paidAuctionSlots * s.minimumBid) return invalid("Budget must cover every paid slot at the minimum bid.");
+
+  if (!globalThis.__createLeagueBuckets) {
+    globalThis.__createLeagueBuckets = {};
+  }
+  const now = Date.now();
+  const bucket = globalThis.__createLeagueBuckets[e.auth.id];
+  if (!bucket || now >= bucket.resetAt) {
+    globalThis.__createLeagueBuckets[e.auth.id] = { count: 1, resetAt: now + 15 * 60 * 1000 };
+  } else if (bucket.count >= 10) {
+    return e.json(429, { code: "rate_limited", message: "Too many leagues created. Try again in a few minutes." });
+  } else {
+    bucket.count += 1;
+  }
 
   // Whitelist persisted fields. Never trust a supplied owner, relation, or id.
   const settings = {
