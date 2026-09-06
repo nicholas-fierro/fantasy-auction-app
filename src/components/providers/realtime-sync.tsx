@@ -13,6 +13,7 @@ import {
 import { useAuction } from '@/contexts/auction-context';
 import { useLeagueContext } from '@/contexts/league-context';
 import { useLeague } from '@/hooks/use-league';
+import { invalidateSiblingWatchlists } from '@/hooks/use-watchlist';
 import {
   auctionNominationQueryKey,
   auctionNominationHistoryQueryKey,
@@ -242,6 +243,7 @@ export function RealtimeSync() {
         queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', year, scoringFormat], (old) =>
           old ? old.filter((w) => w.id !== id) : old
         );
+        invalidateSiblingWatchlists(queryClient, year, scoringFormat);
         return;
       }
 
@@ -267,6 +269,7 @@ export function RealtimeSync() {
         }
         return [...withoutPlaceholder, mapped].sort((a, b) => a.watch_order - b.watch_order);
       });
+      invalidateSiblingWatchlists(queryClient, year, scoringFormat);
     };
 
     pb.collection('watchlist')
