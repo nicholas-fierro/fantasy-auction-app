@@ -55,6 +55,18 @@ export interface HistoryAuction {
   created?: string;
 }
 
+// Which same-year auction represents the league: completed beats active, then
+// newer `created` wins, then higher id breaks a `created` tie.
+export function preferAuction<T extends HistoryAuction>(candidate: T, incumbent: T): boolean {
+  if ((candidate.status === 'completed') !== (incumbent.status === 'completed')) {
+    return candidate.status === 'completed';
+  }
+  if ((candidate.created ?? '') !== (incumbent.created ?? '')) {
+    return (candidate.created ?? '') > (incumbent.created ?? '');
+  }
+  return candidate.id > incumbent.id;
+}
+
 // Scope BEFORE collapsing duplicate years. A dual member's newer draft in a
 // different league must never displace this league's prices or synthesize $0s.
 export function selectHistoryAuctions<T extends HistoryAuction>(
@@ -73,11 +85,7 @@ export function selectHistoryAuctions<T extends HistoryAuction>(
     }
     if (auction.league !== scope.leagueId) continue;
     const previous = chosen.get(auction.year);
-    if (!previous ||
-      (auction.status === 'completed' && previous.status !== 'completed') ||
-      ((auction.status === 'completed') === (previous.status === 'completed') &&
-        ((auction.created ?? '') > (previous.created ?? '') ||
-          ((auction.created ?? '') === (previous.created ?? '') && auction.id > previous.id)))) {
+    if (!previous || preferAuction(auction, previous)) {
       chosen.set(auction.year, auction);
     }
   }

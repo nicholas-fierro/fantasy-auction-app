@@ -338,6 +338,12 @@ export function ImportView() {
                 format or switch leagues before importing.
               </p>
             )}
+            {hasRankings && rankingFormat !== 'ppr' && (
+              <p className="text-amber-700 dark:text-amber-400">
+                Standard and Half-PPR share one board: importing overwrites it for every
+                league on this instance.
+              </p>
+            )}
           </div>
 
           {/* Dropzone */}

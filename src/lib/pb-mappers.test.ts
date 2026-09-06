@@ -6,7 +6,7 @@ import {
   mapSeasonToPlayer,
   mapWatchlistRecord,
 } from '@/lib/pb-mappers';
-import { seasonRankingFieldName } from '@/lib/season-rankings';
+import { seasonBoardImported, seasonRankingFieldName } from '@/lib/season-rankings';
 
 const season = {
   id: 'season-1',
@@ -88,13 +88,13 @@ describe('season ranking mappers', () => {
       expand: { player_id: player },
     } as unknown as RecordModel;
 
-    expect(mapPickRecord(pick, season, 'ppr').player).toMatchObject({
+    expect(mapPickRecord(pick, 'ppr', season).player).toMatchObject({
       position_rank: 1,
       rank: 1,
       tier: 1,
       ecr_vs_adp: 3,
     });
-    expect(mapWatchlistRecord(watch, season, 'ppr').player).toMatchObject({
+    expect(mapWatchlistRecord(watch, 'ppr', season).player).toMatchObject({
       position_rank: 1,
       rank: 1,
       tier: 1,
@@ -106,5 +106,13 @@ describe('season ranking mappers', () => {
     expect(seasonRankingFieldName('rank', 'half')).toBe('rank');
     expect(seasonRankingFieldName('rank', 'std')).toBe('rank');
     expect(seasonRankingFieldName('rank', 'ppr')).toBe('rank_ppr');
+  });
+
+  it('detects whether a format board was imported', () => {
+    expect(seasonBoardImported({ rank: 4, position_rank: 0, tier: 0 }, 'half')).toBe(true);
+    expect(seasonBoardImported({ rank: 0, position_rank: 0, tier: 0 }, 'half')).toBe(false);
+    expect(seasonBoardImported({}, 'ppr')).toBe(false);
+    expect(seasonBoardImported({ rank_ppr: 3 }, 'ppr')).toBe(true);
+    expect(seasonBoardImported({ rank: 4 }, 'ppr')).toBe(false);
   });
 });

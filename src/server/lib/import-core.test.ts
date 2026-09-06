@@ -29,7 +29,8 @@ describe('rankingFields', () => {
         'SOS SEASON': '3 out of 5 stars',
         'ECR VS. ADP': '-2',
       },
-      fullColumns
+      fullColumns,
+      'half'
     );
 
     expect(fields).toEqual({
@@ -100,7 +101,8 @@ describe('rankingFields', () => {
         TIERS: '1',
         'BYE WEEK': '6',
       },
-      columns
+      columns,
+      'half'
     );
 
     expect(fields).not.toHaveProperty('sos');
@@ -120,7 +122,8 @@ describe('rankingFields', () => {
         'SOS SEASON': '',
         'ECR VS. ADP': '',
       },
-      fullColumns
+      fullColumns,
+      'half'
     );
 
     expect(fields).toEqual({
