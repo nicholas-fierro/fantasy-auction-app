@@ -12,7 +12,7 @@ import {
 } from '@/lib/pb-mappers';
 import { useAuction } from '@/contexts/auction-context';
 import { useLeagueContext } from '@/contexts/league-context';
-import { useLeague } from '@/hooks/use-league';
+import { useIsSnakeLeague, useLeague } from '@/hooks/use-league';
 import {
   auctionNominationQueryKey,
   auctionNominationHistoryQueryKey,
@@ -38,6 +38,7 @@ export function RealtimeSync() {
   const { selectedAuction, selectedAuctionId, selectedYear } = useAuction();
   const { settings } = useLeague();
   const { selectedLeagueId } = useLeagueContext();
+  const isSnakeLeague = useIsSnakeLeague();
   const scoringFormat = settings.scoringFormat;
 
   // --- realtime connection recovery (3b) ---
@@ -182,8 +183,9 @@ export function RealtimeSync() {
   }, [selectedLeagueId, queryClient]);
 
   // --- auction_nomination_events (shared official-auction state) ---
+  // Absent in snake-format leagues: no nominations exist, so no stream.
   useEffect(() => {
-    if (!selectedAuctionId || selectedAuction?.type !== 'official') return;
+    if (!selectedAuctionId || selectedAuction?.type !== 'official' || isSnakeLeague) return;
     const auctionId = selectedAuctionId;
     let unsub: (() => void) | undefined;
 
@@ -223,7 +225,7 @@ export function RealtimeSync() {
     return () => {
       unsub?.();
     };
-  }, [selectedAuction?.type, selectedAuctionId, queryClient]);
+  }, [selectedAuction?.type, selectedAuctionId, isSnakeLeague, queryClient]);
 
   // --- watchlist (per user; scoped by API rule) ---
   useEffect(() => {

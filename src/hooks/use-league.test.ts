@@ -20,6 +20,7 @@ const {
   useDraftFormat,
   useIsCommissioner,
   useIsCommissionerOf,
+  useIsSnakeLeague,
   useLeague,
   useUserTeamId,
 } = await import('./use-league');
@@ -89,6 +90,17 @@ describe('league hooks', () => {
     });
     expect(useDraftFormat()).toBe('snake');
     expect(mocks.useAuction).not.toHaveBeenCalled();
+  });
+
+  it('gates auction chrome on the declared format, not phase state', () => {
+    expect(useIsSnakeLeague()).toBe(false);
+
+    mocks.useLeagueContext.mockReturnValue({
+      ...mocks.useLeagueContext(),
+      settings: { ...DEFAULT_ROSTER_SETTINGS, paidAuctionSlots: 0 },
+      format: 'snake',
+    });
+    expect(useIsSnakeLeague()).toBe(true);
   });
 
   it('returns every commissioned league and checks a specific league', () => {

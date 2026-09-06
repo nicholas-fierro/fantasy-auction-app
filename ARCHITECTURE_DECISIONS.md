@@ -752,3 +752,35 @@ per player and year, not one per scoring format or league. Isolated computation
 does not make that column capable of storing multiple auction leagues' results
 at once. Supporting that requires the planned `league_player_values` split; the
 current auction-plus-snake pairing does not introduce a second price writer.
+
+## AD-30: Snake draft rooms hide auction chrome, predict survival, and draft in one click
+
+**Decision.** One predicate — `useIsSnakeLeague()`, derived from the league's
+declared `draftFormat` — gates every piece of auction chrome in a snake-format
+league: budget and max-bid summaries, team budget pressure, the nomination lane
+plus nominated-player state and its realtime subscription, price entry, inline
+auction-value editing, projected/actual price columns, the comps distribution
+and price-history sections, and the price-shaped analysis view. The draft board
+shows round and pick (`R3 · P7`) in place of price. Tier-cliff alerts carry over
+untouched. The board and watchlist flag players unlikely to survive to the
+user's next snake turn, from derived ADP and the snake rotation, with no
+prediction for players lacking ADP and no signal at all when the board carries
+no ADP data. Clicking Draft in a snake draft records the pick immediately for
+the team on the clock — no modal — preserving the two pick-entry lanes
+(commissioner any team, member own team on own turn).
+
+**Why.** Every auction affordance is meaningless without prices and several are
+actively misleading ($0 budgets, blank price cells). The format predicate —
+not the phase toggle — drives the gates so hybrid snake-phase rooms keep their
+auction chrome. Survival is the format's highest-value signal: the decision is
+never "who is best" but "who will not last". One-click entry fits a 168-pick
+draft moving far faster than an auction, where the commissioner records while
+drafting.
+
+**Consequences.** Known limitation, documented not fixed: `pick_order` is
+assigned as one past the current maximum while the snake turn derives from the
+pick count, so deleting a mid-draft pick and re-entering it lands it at the end
+of the order — the count stays right but that player shows in the wrong round.
+Undoing the most recent pick is clean. Fixing the general case means
+renumbering, which touches the pick-order hook and its unique index, both
+load-bearing for the existing league's imported history.

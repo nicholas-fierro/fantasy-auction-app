@@ -30,6 +30,10 @@ import { PlayerActionButton } from '@/components/player-action-button';
 import { useWatchlist, useUpdateWatchlistOrder, useRemoveFromWatchlist } from '@/hooks/use-watchlist';
 import { useAllDraftPicks } from '@/hooks/use-draft-picks';
 import { usePlayerActions } from '@/hooks/use-player-actions';
+import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
+import { useIsSnakeLeague, useUserTeamId } from '@/hooks/use-league';
+import { deriveAdp } from '@/lib/adp';
+import { isExpectedGoneBeforeNextTurn, picksUntilNextTurn } from '@/lib/snake-survival';
 import { useActiveDraft } from '@/contexts/active-draft-context';
 import { WatchlistWithDetails } from '@/server/types/watchlist';
 import { WatchlistFilter } from '@/components/watchlist-sidebar';
@@ -40,10 +44,11 @@ interface SortableWatchlistItemProps {
   item: WatchlistWithDetails;
   isDrafted: boolean;
   price: number | null;
+  survival: boolean | null;
   playerActions: ReturnType<typeof usePlayerActions>;
 }
 
-function SortableWatchlistItem({ item, isDrafted, price, playerActions }: SortableWatchlistItemProps) {
+function SortableWatchlistItem({ item, isDrafted, price, survival, playerActions }: SortableWatchlistItemProps) {
   const {
     attributes,
     listeners,
@@ -112,6 +117,15 @@ function SortableWatchlistItem({ item, isDrafted, price, playerActions }: Sortab
               ${price}
             </Badge>
           )}
+          {survival != null && (
+            survival ? (
+              <Badge className="bg-amber-100 px-1 text-[10px] text-amber-800 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300">
+                Won&apos;t last
+              </Badge>
+            ) : (
+              <span className="text-[10px] text-gray-400">Likely there</span>
+            )
+          )}
         </div>
         <div className="text-xs text-gray-500">
           {item.player.team} • Bye {item.player.bye_week} • #{item.player.rank}
@@ -151,8 +165,20 @@ interface WatchlistItemsProps {
 export function WatchlistItems({ filter, selectedPositions }: WatchlistItemsProps) {
   const { data: watchlist = [], isLoading } = useWatchlist();
   const { data: draftPicks = [] } = useAllDraftPicks();
+  const { data: teams = [] } = useAuctionTeams();
+  const userTeamId = useUserTeamId();
+  const isSnakeLeague = useIsSnakeLeague();
   const updateWatchlistOrder = useUpdateWatchlistOrder();
   const playerActions = usePlayerActions();
+
+  // Same survival signal as the board (NFI-83), gated on board-wide ADP.
+  const adpAvailable = watchlist.some(item => deriveAdp(item.player.rank, item.player.ecr_vs_adp) != null);
+  const userDraftOrder = teams.find(team => team.id === userTeamId)?.draft_order ?? null;
+  const picksAway = isSnakeLeague && userTeamId
+    ? picksUntilNextTurn(draftPicks.length, userDraftOrder, teams.length)
+    : null;
+  const showSurvival = isSnakeLeague && adpAvailable && picksAway != null;
+  const currentOverall = draftPicks.length + 1;
 
   const [optimisticItems, setOptimisticItems] = useState<WatchlistWithDetails[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -195,8 +221,11 @@ export function WatchlistItems({ filter, selectedPositions }: WatchlistItemsProp
   );
 
   // Get drafted player IDs and sale prices for the selected auction
+  // (prices hidden in snake leagues — the badge reads hasAuctionValue).
   const draftedPlayerIds = new Set(draftPicks.map(pick => pick.player_id));
-  const priceByPlayerId = new Map(draftPicks.map(pick => [pick.player_id, pick.price]));
+  const priceByPlayerId = isSnakeLeague
+    ? new Map<string, number>()
+    : new Map(draftPicks.map(pick => [pick.player_id, pick.price]));
 
   // Filter items based on filter selection
   const filteredItems = currentItems.filter(item => {
@@ -320,6 +349,9 @@ export function WatchlistItems({ filter, selectedPositions }: WatchlistItemsProp
                 item={item}
                 isDrafted={isDrafted}
                 price={priceByPlayerId.get(item.player_id) ?? null}
+                survival={showSurvival
+                  ? isExpectedGoneBeforeNextTurn(item.player, picksAway, currentOverall)
+                  : null}
                 playerActions={playerActions}
               />
             );

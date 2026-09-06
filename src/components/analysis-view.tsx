@@ -48,6 +48,7 @@ import { useHistoricalValues } from '@/hooks/use-history';
 import { computeRollingMedian } from '@/lib/estimated-value';
 import type { HistoricalValue } from '@/server/types/history';
 import { useAllPlayers } from '@/hooks/use-players';
+import { useIsSnakeLeague } from '@/hooks/use-league';
 import { playerFromHistoricalValue } from '@/lib/player-detail';
 import { PlayerNameButton } from '@/components/player-name-button';
 import type { Player } from '@/server/types/player';
@@ -253,6 +254,8 @@ export function AnalysisView() {
   const { data: historicalValues = [], isLoading, error } = useHistoricalValues();
   const { data: currentPlayers = [] } = useAllPlayers();
   const { resolvedTheme } = useTheme();
+  // Price-vs-rank charts are auction history — a snake league has none.
+  const isSnakeLeague = useIsSnakeLeague();
 
   // Avoid a light/dark flash from an SSR/hydration mismatch — resolvedTheme is
   // undefined until next-themes mounts client-side.
@@ -429,7 +432,18 @@ export function AnalysisView() {
         )}
       />
 
-      {isLoading ? (
+      {isSnakeLeague ? (
+        <Card>
+          <CardContent className="py-12 text-center space-y-2">
+            <LineChartIcon className="h-8 w-8 mx-auto text-muted-foreground" />
+            <p className="font-medium">No auction analysis for snake leagues.</p>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              This view charts historical auction prices, which do not exist in a
+              snake draft. Tier cliffs on the players table carry over unchanged.
+            </p>
+          </CardContent>
+        </Card>
+      ) : isLoading ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             Loading historical values...

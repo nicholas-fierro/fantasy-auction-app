@@ -32,7 +32,7 @@ import { useActiveDraft } from '@/contexts/active-draft-context';
 import { useMockDraft } from '@/contexts/mock-draft-context';
 import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
 import { useAllDraftPicks } from '@/hooks/use-draft-picks';
-import { useLeague, useUserTeamId } from '@/hooks/use-league';
+import { useIsSnakeLeague, useLeague, useUserTeamId } from '@/hooks/use-league';
 import { useCompleteAuction, useDeleteAuction } from '@/hooks/use-auctions';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useOnTheClockState } from '@/hooks/use-on-the-clock-state';
@@ -1114,6 +1114,7 @@ function SimTicker() {
 
 function LiveTicker() {
   const { isSnakeMode } = useNavigation();
+  const isSnakeLeague = useIsSnakeLeague();
   const { simFlagged } = useMockDraft();
   const isDraftRoom = useIsDraftRoom();
   const isMobile = useIsMobile();
@@ -1143,7 +1144,7 @@ function LiveTicker() {
           <SimTicker />
           <WinConfetti />
         </>
-      ) : isSnakeMode ? (
+      ) : isSnakeLeague || isSnakeMode ? (
         <SnakeTicker />
       ) : (
         <AuctionTicker />

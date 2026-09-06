@@ -9,7 +9,7 @@ import { useIsDraftRoom, useNavigation } from '@/contexts/navigation-context';
 import { useAllDraftPicks } from '@/hooks/use-draft-picks';
 import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
 import { useIsMobile } from '@/hooks/use-is-mobile';
-import { useLeague, useUserTeamId } from '@/hooks/use-league';
+import { useIsSnakeLeague, useLeague, useUserTeamId } from '@/hooks/use-league';
 import { useOnTheClockState } from '@/hooks/use-on-the-clock-state';
 import { getNominatorForPick } from '@/lib/draft-turn';
 import { calculateBudgetSummary } from '@/lib/roster';
@@ -939,6 +939,7 @@ function SimRail({ expanded, setExpanded }: RailProps) {
 
 export function MobileNominationTicker() {
   const { isSnakeMode } = useNavigation();
+  const isSnakeLeague = useIsSnakeLeague();
   const { simFlagged } = useMockDraft();
   const isDraftRoom = useIsDraftRoom();
   const isMobile = useIsMobile();
@@ -955,6 +956,6 @@ export function MobileNominationTicker() {
       </>
     );
   }
-  if (isSnakeMode) return <SnakeRail expanded={expanded} setExpanded={setExpanded} />;
+  if (isSnakeLeague || isSnakeMode) return <SnakeRail expanded={expanded} setExpanded={setExpanded} />;
   return <AuctionRail expanded={expanded} setExpanded={setExpanded} />;
 }

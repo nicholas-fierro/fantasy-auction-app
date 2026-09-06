@@ -21,6 +21,16 @@ export function useDraftFormat(): DraftFormat {
   return useLeagueContext().format;
 }
 
+// Single predicate gating every piece of auction chrome in a snake-format
+// league (NFI-82): budget/max-bid summaries, nomination UI + subscription,
+// price entry, price columns, mock bid controls, watchlist market nudge.
+// Derived from the league's declared draft format — never from phase state
+// (isSnakeMode) or paidAuctionSlots — so hybrid snake-phase rooms keep
+// auction chrome and the gates cannot drift apart per component.
+export function useIsSnakeLeague(): boolean {
+  return useDraftFormat() === 'snake';
+}
+
 export function useCommissionedLeagues(): LeagueInfo[] {
   const { leagues } = useLeagueContext();
   const userId = pb.authStore.record?.id ?? null;

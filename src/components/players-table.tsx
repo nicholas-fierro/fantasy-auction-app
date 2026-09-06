@@ -48,10 +48,14 @@ import type { PlayerInjury } from '@/lib/sleeper-injuries';
 import { useProjectedPickLines } from '@/hooks/use-projected-pick-lines';
 import type { ProjectedTeamPick } from '@/lib/snake-pick-projection';
 import { compareBoardPlayers, deriveAdp, type BoardSort } from '@/lib/adp';
+import { isExpectedGoneBeforeNextTurn, picksUntilNextTurn } from '@/lib/snake-survival';
+import { useIsSnakeLeague, useUserTeamId } from '@/hooks/use-league';
+import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
 
 // Every column stays in the DOM on mobile — the low-value ones are only
-// display:none via `max-md:hidden`, so colSpan stays 14 at every width.
-const COLUMN_COUNT = 14;
+// display:none via `max-md:hidden`. Base count is 14; the rendered count
+// adjusts when the snake league hides price columns / adds survival.
+const BASE_COLUMN_COUNT = 14;
 const ROW_HEIGHT_ESTIMATE = 53;
 
 type TableRowItem =
@@ -83,6 +87,22 @@ export function PlayersTable() {
   const { data: draftPicks = [] } = useAllDraftPicks();
   const { isReadOnly, selectedYear } = useAuction();
   const playerActions = usePlayerActions();
+  const isSnakeLeague = useIsSnakeLeague();
+  const userTeamId = useUserTeamId();
+  const { data: teams = [] } = useAuctionTeams();
+
+  // Survival signal (NFI-83): picks until the user's next turn, from the
+  // snake rotation. Absent entirely when the board carries no ADP data.
+  const adpAvailable = players.some(player => deriveAdp(player.rank, player.ecr_vs_adp) != null);
+  const userDraftOrder = teams.find(team => team.id === userTeamId)?.draft_order ?? null;
+  const picksAway = isSnakeLeague && userTeamId
+    ? picksUntilNextTurn(draftPicks.length, userDraftOrder, teams.length)
+    : null;
+  const showSurvival = isSnakeLeague && adpAvailable && picksAway != null;
+  const nextTurnOverall = draftPicks.length + 1 + (picksAway ?? 0);
+  // Base 14 minus the two price columns in a snake league, plus the survival
+  // column when it renders.
+  const columnCount = BASE_COLUMN_COUNT - (isSnakeLeague ? 2 : 0) + (showSurvival ? 1 : 0);
 
   // Hoisted out of WatchlistButton: previously every row ran its own
   // useWatchlist/useAddToWatchlist/useRemoveFromWatchlist, creating ~1200
@@ -357,22 +377,42 @@ export function PlayersTable() {
               <TableHead className="w-[100px] max-md:hidden">Tier</TableHead>
               <TableHead className="w-[100px] max-md:hidden">SOS</TableHead>
               <TableHead className="w-[100px] max-md:hidden">Bye Week</TableHead>
-              <TableHead className="w-[140px] max-md:w-20">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="cursor-help underline decoration-dotted underline-offset-2">
-                      <span className="max-md:hidden">Projected </span>Price
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-72">
-                    Your cheat-sheet price from the league-history model: comps from past
-                    drafts, recent years weighted more, scaled so the top 84 players sum to
-                    the $2,400 league budget. Editable — manual edits stick until the model
-                    is recalculated.
-                  </TooltipContent>
-                </Tooltip>
-              </TableHead>
-              <TableHead className="w-[140px] max-md:hidden">Actual Value</TableHead>
+              {showSurvival && (
+                <TableHead className="w-[110px]">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help underline decoration-dotted underline-offset-2">
+                        Next Pick
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-72">
+                      Whether this player is expected to be gone before your next turn
+                      (pick {nextTurnOverall}), from ADP and the snake rotation.
+                      No flag means no ADP data for that player.
+                    </TooltipContent>
+                  </Tooltip>
+                </TableHead>
+              )}
+              {!isSnakeLeague && (
+                <>
+                  <TableHead className="w-[140px] max-md:w-20">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help underline decoration-dotted underline-offset-2">
+                          <span className="max-md:hidden">Projected </span>Price
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-72">
+                        Your cheat-sheet price from the league-history model: comps from past
+                        drafts, recent years weighted more, scaled so the top 84 players sum to
+                        the $2,400 league budget. Editable — manual edits stick until the model
+                        is recalculated.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableHead>
+                  <TableHead className="w-[140px] max-md:hidden">Actual Value</TableHead>
+                </>
+              )}
               <TableHead className="w-[120px] max-md:hidden">ECR vs ADP</TableHead>
               <TableHead className="w-[100px] max-md:w-14 sticky right-0 z-30 bg-background shadow-[inset_1px_0_0_0_var(--border)]">Action</TableHead>
             </TableRow>
@@ -380,13 +420,13 @@ export function PlayersTable() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={COLUMN_COUNT} className="text-center py-8">
+                <TableCell colSpan={columnCount} className="text-center py-8">
                   Loading players...
                 </TableCell>
               </TableRow>
             ) : filteredPlayers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={COLUMN_COUNT} className="text-center py-8">
+                <TableCell colSpan={columnCount} className="text-center py-8">
                   {players.length === 0
                     ? `No player data for ${selectedYear} — import it in the Import view.`
                     : deferredSearchTerm
@@ -398,7 +438,7 @@ export function PlayersTable() {
               <>
                 {paddingTop > 0 && (
                   <tr aria-hidden="true">
-                    <td colSpan={COLUMN_COUNT} style={{ height: paddingTop }} />
+                    <td colSpan={columnCount} style={{ height: paddingTop }} />
                   </tr>
                 )}
                 {virtualRows.map((virtualRow) => {
@@ -410,6 +450,7 @@ export function PlayersTable() {
                         ref={rowVirtualizer.measureElement}
                         dataIndex={virtualRow.index}
                         pick={row.pick}
+                        columnCount={columnCount}
                       />
                     );
                   }
@@ -432,6 +473,10 @@ export function PlayersTable() {
                       canNominate={playerActions.canNominate}
                       isWatched={watchlistItemId !== undefined}
                       watchlistItemId={watchlistItemId}
+                      isSnakeLeague={isSnakeLeague}
+                      survival={showSurvival
+                        ? isExpectedGoneBeforeNextTurn(player, picksAway, draftPicks.length + 1)
+                        : null}
                       onAction={playerActions.handlePlayerAction}
                       onUpdateProjected={handleUpdateProjected}
                       onUpdatePrice={handleUpdatePrice}
@@ -441,7 +486,7 @@ export function PlayersTable() {
                 })}
                 {paddingBottom > 0 && (
                   <tr aria-hidden="true">
-                    <td colSpan={COLUMN_COUNT} style={{ height: paddingBottom }} />
+                    <td colSpan={columnCount} style={{ height: paddingBottom }} />
                   </tr>
                 )}
               </>
@@ -463,8 +508,8 @@ export function PlayersTable() {
 // gone; the block between two lines is the realistic range for that pick.
 const ProjectedPickRow = React.forwardRef<
   HTMLTableRowElement,
-  { pick: ProjectedTeamPick; dataIndex: number }
->(function ProjectedPickRow({ pick, dataIndex }, ref) {
+  { pick: ProjectedTeamPick; dataIndex: number; columnCount: number }
+>(function ProjectedPickRow({ pick, dataIndex, columnCount }, ref) {
   const onTheClock = pick.picksAway === 0;
   const label = `${pick.round}.${String(pick.pickInRound).padStart(2, '0')}`;
   return (
@@ -473,7 +518,7 @@ const ProjectedPickRow = React.forwardRef<
       data-index={dataIndex}
       className="hover:bg-transparent border-0"
     >
-      <TableCell colSpan={COLUMN_COUNT} className="p-0">
+      <TableCell colSpan={columnCount} className="p-0">
         <div
           className={cn(
             'flex items-center gap-2 border-y-2 border-dashed px-2 py-1 text-[11px] font-semibold uppercase tracking-wide',
@@ -511,6 +556,8 @@ interface PlayerRowProps {
   isWatched: boolean;
   watchlistItemId: string | undefined;
   dataIndex: number;
+  isSnakeLeague: boolean;
+  survival: boolean | null;
   onAction: (player: Player) => void;
   onUpdateProjected: (playerId: string, seasonId: string, value: number | null) => void;
   onUpdatePrice: (playerId: string, pickId: string, value: number | null) => void;
@@ -531,6 +578,8 @@ const PlayerRow = React.memo(React.forwardRef<HTMLTableRowElement, PlayerRowProp
   isWatched,
   watchlistItemId,
   dataIndex,
+  isSnakeLeague,
+  survival,
   onAction,
   onUpdateProjected,
   onUpdatePrice,
@@ -625,29 +674,44 @@ const PlayerRow = React.memo(React.forwardRef<HTMLTableRowElement, PlayerRowProp
         <StarRating value={player.sos} />
       </TableCell>
       <TableCell className="text-center max-md:hidden">{player.bye_week}</TableCell>
-      <TableCell>
-        <EditableAuctionValue
-          value={player.projected_auction_value}
-          onSave={(value) => onUpdateProjected(player.id, player.season_id, value)}
-          isLoading={isUpdating}
-          placeholder="Projected Price"
-          hideEditOnMobile
-        />
-      </TableCell>
-      <TableCell className="max-md:hidden">
-        {pick && !isReadOnly ? (
-          <EditableAuctionValue
-            value={pick.price}
-            onSave={(value) => onUpdatePrice(player.id, pick.id, value)}
-            isLoading={isUpdating}
-            placeholder="Actual"
-          />
-        ) : (
-          <span className="text-sm font-medium min-w-[2rem]">
-            {pick?.price != null ? `$${pick.price}` : '-'}
-          </span>
-        )}
-      </TableCell>
+      {survival != null && (
+        <TableCell>
+          {survival ? (
+            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+              Gone
+            </span>
+          ) : (
+            <span className="text-xs text-gray-400">Likely there</span>
+          )}
+        </TableCell>
+      )}
+      {!isSnakeLeague && (
+        <>
+          <TableCell>
+            <EditableAuctionValue
+              value={player.projected_auction_value}
+              onSave={(value) => onUpdateProjected(player.id, player.season_id, value)}
+              isLoading={isUpdating}
+              placeholder="Projected Price"
+              hideEditOnMobile
+            />
+          </TableCell>
+          <TableCell className="max-md:hidden">
+            {pick && !isReadOnly ? (
+              <EditableAuctionValue
+                value={pick.price}
+                onSave={(value) => onUpdatePrice(player.id, pick.id, value)}
+                isLoading={isUpdating}
+                placeholder="Actual"
+              />
+            ) : (
+              <span className="text-sm font-medium min-w-[2rem]">
+                {pick?.price != null ? `$${pick.price}` : '-'}
+              </span>
+            )}
+          </TableCell>
+        </>
+      )}
       <TableCell className="text-center max-md:hidden">
         <span className={`font-medium ${(player.ecr_vs_adp ?? 0) > 0
           ? 'text-green-600'

@@ -11,7 +11,7 @@ import { X, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react';
 import { useNavigation } from '@/contexts/navigation-context';
 import { type FilterPosition } from '@/contexts/navigation-context';
 import { calculateBudgetSummary } from '@/lib/roster';
-import { useLeague, useUserTeamId } from '@/hooks/use-league';
+import { useIsSnakeLeague, useLeague, useUserTeamId } from '@/hooks/use-league';
 import { cn } from '@/lib/utils';
 
 export type WatchlistFilter = 'all' | 'available' | 'drafted';
@@ -32,7 +32,8 @@ export function WatchlistSidebar({ className, onClose }: WatchlistSidebarProps) 
   const userTeamId = useUserTeamId();
   const { settings } = useLeague();
 
-  // Calculate budget info for user's team
+  // Calculate budget info for user's team (hidden in snake leagues)
+  const isSnakeLeague = useIsSnakeLeague();
   const userPicks = draftPicks.filter(pick => pick.fantasy_team_id === userTeamId);
   const { remainingBudget, remainingAuctionPicks, maxBid } = calculateBudgetSummary(userPicks, settings);
 
@@ -148,11 +149,13 @@ export function WatchlistSidebar({ className, onClose }: WatchlistSidebarProps) 
           </div>
           {!isRosterMinimized && (
             <div className="px-4 pb-4">
-              <div className="mb-2 grid grid-cols-3 divide-x overflow-hidden rounded-md border bg-gray-50 dark:bg-gray-900">
-                <RosterMetric label="Budget" value={`$${remainingBudget}`} />
-                <RosterMetric label="Max bid" value={`$${maxBid}`} />
-                <RosterMetric label="Paid slots" value={remainingAuctionPicks} />
-              </div>
+              {!isSnakeLeague && (
+                <div className="mb-2 grid grid-cols-3 divide-x overflow-hidden rounded-md border bg-gray-50 dark:bg-gray-900">
+                  <RosterMetric label="Budget" value={`$${remainingBudget}`} />
+                  <RosterMetric label="Max bid" value={`$${maxBid}`} />
+                  <RosterMetric label="Paid slots" value={remainingAuctionPicks} />
+                </div>
+              )}
               <RosterSummary />
             </div>
           )}

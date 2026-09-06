@@ -9,9 +9,9 @@ import { SnakeDraftPickModal } from '@/components/snake-draft-pick-modal';
 import { DraftPickWithDetails } from '@/server/types/draft-pick';
 import { FantasyTeam } from '@/server/types/fantasy-team';
 import { useNavigation } from '@/contexts/navigation-context';
-import { calculateCurrentSnakeTeam, getTeamRoundForPick } from '@/lib/snake-draft';
+import { calculateCurrentSnakeTeam, getSnakeRound, getTeamRoundForPick } from '@/lib/snake-draft';
 import { isUserTeam } from '@/lib/roster';
-import { useDraftRole, useLeague } from '@/hooks/use-league';
+import { useDraftRole, useIsSnakeLeague, useLeague } from '@/hooks/use-league';
 import { useMockDraft } from '@/contexts/mock-draft-context';
 import { Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
@@ -25,6 +25,7 @@ export function DraftBoard({ embedded }: { embedded?: boolean }) {
   const mockDraft = useMockDraft();
   const { canPickAnyTeam, userTeamId } = useDraftRole();
   const { settings } = useLeague();
+  const isSnakeLeague = useIsSnakeLeague();
   const [snakePickModal, setSnakePickModal] = useState<{
     isOpen: boolean;
     team: FantasyTeam | null;
@@ -227,6 +228,11 @@ export function DraftBoard({ embedded }: { embedded?: boolean }) {
                     <DraftPickCell
                       draftPick={pick || undefined}
                       className={cellClassName}
+                      roundPickLabel={
+                        isSnakeLeague && pick
+                          ? `R${getSnakeRound(pick.pick_order, sortedTeams.length, settings.paidAuctionSlots)} · P${pick.pick_order}`
+                          : null
+                      }
                     />
                   </div>
                 );

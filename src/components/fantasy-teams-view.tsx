@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { useIsSnakeLeague } from '@/hooks/use-league';
 
 export function FantasyTeamsView() {
   const [rosterView, setRosterView] = useState<RosterViewMode>('slots');
@@ -24,6 +25,8 @@ export function FantasyTeamsView() {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const { data: teams = [], isLoading: teamsLoading, error: teamsError } = useAuctionTeams();
   const { data: draftPicks = [], isLoading: picksLoading, error: picksError } = useAllDraftPicks();
+  // Budget pressure is auction math — meaningless without prices.
+  const isSnakeLeague = useIsSnakeLeague();
   const sortedTeams = useMemo(
     () => [...teams].sort((a, b) => a.draft_order - b.draft_order),
     [teams],
@@ -61,7 +64,7 @@ export function FantasyTeamsView() {
         className="mb-3"
       />
 
-      <TeamBudgetPressure teams={sortedTeams} draftPicks={draftPicks} />
+      {!isSnakeLeague && <TeamBudgetPressure teams={sortedTeams} draftPicks={draftPicks} />}
 
       <div className="mb-2 flex flex-wrap items-center gap-2 md:justify-end">
         <Select value={selectedTeamId ?? undefined} onValueChange={setSelectedTeamId}>

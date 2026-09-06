@@ -3,7 +3,7 @@
 import { Badge } from '@/components/ui/badge';
 import { PositionBadge } from '@/components/position-badge';
 import { useAllDraftPicks } from '@/hooks/use-draft-picks';
-import { useLeague, useUserTeamId } from '@/hooks/use-league';
+import { useIsSnakeLeague, useLeague, useUserTeamId } from '@/hooks/use-league';
 import { buildRosterFromPicks, type RosterSlot } from '@/lib/roster';
 import { PlayerNameButton } from '@/components/player-name-button';
 
@@ -18,7 +18,8 @@ export function RosterSummary() {
   // Build simplified roster from picks
   const rosterData = buildRosterFromPicks(userPicks, settings);
 
-  // Sale price per player, for the roster slot display
+  // Sale price per player, for the roster slot display (null in snake leagues)
+  const isSnakeLeague = useIsSnakeLeague();
   const priceByPlayerId = new Map(userPicks.map(pick => [pick.player_id, pick.price]));
 
   return (
@@ -26,7 +27,7 @@ export function RosterSummary() {
       {/* Starters */}
       <div className="space-y-1">
         {rosterData.starters.map((slot, index) => (
-          <RosterSlotDisplay key={`starter-${index}`} slot={slot} price={slot.player ? priceByPlayerId.get(slot.player.id) ?? null : null} />
+          <RosterSlotDisplay key={`starter-${index}`} slot={slot} price={isSnakeLeague ? null : slot.player ? priceByPlayerId.get(slot.player.id) ?? null : null} />
         ))}
       </div>
 
@@ -35,7 +36,7 @@ export function RosterSummary() {
         <div className="text-xs font-medium text-gray-500 mb-1">BENCH</div>
         <div className="space-y-1">
           {rosterData.bench.map((slot, index) => (
-            <RosterSlotDisplay key={`bench-${index}`} slot={slot} price={slot.player ? priceByPlayerId.get(slot.player.id) ?? null : null} />
+            <RosterSlotDisplay key={`bench-${index}`} slot={slot} price={isSnakeLeague ? null : slot.player ? priceByPlayerId.get(slot.player.id) ?? null : null} />
           ))}
         </div>
       </div>

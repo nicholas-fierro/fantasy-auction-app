@@ -21,6 +21,7 @@ import {
 import { PlayerNewsSection } from '@/components/player-news-section';
 import { Player } from '@/server/types/player';
 import { usePlayerDetail } from '@/contexts/player-detail-context';
+import { useIsSnakeLeague } from '@/hooks/use-league';
 import { usePlayerInjuries } from '@/hooks/use-player-injuries';
 import { useAllDraftPicks } from '@/hooks/use-draft-picks';
 import { InjuryBadge } from '@/components/injury-badge';
@@ -52,6 +53,9 @@ export function PlayerDetailModal({ player, isOpen, onClose }: PlayerDetailModal
   const { data: injuryData } = usePlayerInjuries(isOpen);
   const { data: draftPicks = [] } = useAllDraftPicks();
   const injury = player.sleeper_id ? injuryData?.injuries[player.sleeper_id] : undefined;
+  // No prices exist in a snake league: the target-price section and its
+  // pricing drill-in hide; gamelog and news carry over untouched.
+  const isSnakeLeague = useIsSnakeLeague();
   const draftedPrice = useMemo(
     () => draftPicks.find(pick => pick.player_id === player.id)?.price,
     [draftPicks, player.id]
@@ -138,7 +142,9 @@ export function PlayerDetailModal({ player, isOpen, onClose }: PlayerDetailModal
             <>
               {/* The overview is the two summaries only — target price with its comps
                   distribution, then scoring by week. Each drills into its own table. */}
-              <PlayerTargetPriceSection player={player} onShowTable={() => setView('pricing')} />
+              {!isSnakeLeague && (
+                <PlayerTargetPriceSection player={player} onShowTable={() => setView('pricing')} />
+              )}
               <PlayerGameLogSection
                 player={player}
                 enabled={isOpen}
@@ -165,7 +171,7 @@ export function PlayerDetailModal({ player, isOpen, onClose }: PlayerDetailModal
             />
           )}
 
-          {view === 'pricing' && (
+          {view === 'pricing' && !isSnakeLeague && (
             <>
               <div className="flex items-center gap-4 border-b bg-muted/20 px-5 py-3 sm:px-6">
                 <button
