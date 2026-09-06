@@ -19,7 +19,7 @@ import { seasonRankingValue } from '@/lib/season-rankings';
 // from the season row.
 export function mapSeasonToPlayer(
   record: RecordModel,
-  scoringFormat: ScoringFormat = 'half'
+  scoringFormat: ScoringFormat
 ): Player {
   const p = record.expand?.player_id;
   return {
@@ -47,7 +47,7 @@ export function mapSeasonToPlayer(
 
 export function mapSeasonRecord(
   record: RecordModel,
-  scoringFormat: ScoringFormat = 'half'
+  scoringFormat: ScoringFormat
 ): PlayerSeason {
   return {
     id: record.id,
@@ -90,8 +90,8 @@ export function mapGameLogRecord(record: RecordModel): PlayerGameLog {
 // the frozen fields so mock/future-year auctions still render team/bye/rank.
 export function mapPickRecord(
   record: RecordModel,
-  season?: RecordModel,
-  scoringFormat: ScoringFormat = 'half'
+  scoringFormat: ScoringFormat,
+  season?: RecordModel
 ): DraftPickWithDetails {
   const p = record.expand?.player_id;
   return {
@@ -145,8 +145,8 @@ export function mapPickRecord(
 // over the expanded players record. Mirrors the shape getWatchlist returned.
 export function mapWatchlistRecord(
   record: RecordModel,
-  season?: RecordModel,
-  scoringFormat: ScoringFormat = 'half'
+  scoringFormat: ScoringFormat,
+  season?: RecordModel
 ): WatchlistWithDetails {
   const p = record.expand?.player_id;
   return {

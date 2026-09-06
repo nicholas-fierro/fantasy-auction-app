@@ -256,7 +256,7 @@ export function registerIdentity(index: PlayerIndex, record: RecordModel): void 
 export function rankingFields(
   row: CsvRow,
   columns: Set<string>,
-  scoringFormat: RankingScoringFormat = 'half'
+  scoringFormat: RankingScoringFormat
 ): CsvRow {
   const fields: CsvRow = {};
   const has = (column: string) => columns.has(column);
@@ -511,7 +511,7 @@ export async function importAuctionValuesCore(
 export async function calculateProjectedValuesCore(
   pb: PocketBase,
   year: number,
-  scoringFormat: RankingScoringFormat = 'half'
+  scoringFormat: RankingScoringFormat
 ): Promise<CalculateProjectedResult> {
   const data = await loadFromPocketBase(pb, scoringFormat);
   const history = buildHistory(data, year);

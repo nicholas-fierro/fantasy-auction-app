@@ -89,7 +89,7 @@ export interface PricedPick {
 // filtering to the builders so a single fetch serves history and targets.
 export async function loadFromPocketBase(
   pb: PocketBase,
-  scoringFormat: ScoringFormat = 'half'
+  scoringFormat: ScoringFormat
 ): Promise<ValueData> {
   const auctionRecords = await pb.collection('auctions').getFullList({
     filter: pb.filter('type = "official" && year > 0'),
@@ -140,7 +140,7 @@ export async function loadFromPocketBase(
 // filtered to official priced picks; numeric columns are numbers.
 export function loadFromDump(
   path: string,
-  scoringFormat: ScoringFormat = 'half'
+  scoringFormat: ScoringFormat
 ): ValueData {
   const raw = JSON.parse(readFileSync(path, 'utf8')) as {
     auctions: RawAuction[];

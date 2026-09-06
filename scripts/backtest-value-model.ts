@@ -11,10 +11,13 @@
 // Averages across the four years are printed as an old-vs-new table.
 //
 // Usage:
-//   npx tsx scripts/backtest-value-model.ts --data <dump.json>
-//   PB_SUPERUSER_EMAIL=... PB_SUPERUSER_PASSWORD=... npx tsx scripts/backtest-value-model.ts
+//   npx tsx scripts/backtest-value-model.ts --data <dump.json> [--scoring-format half]
+//   PB_SUPERUSER_EMAIL=... PB_SUPERUSER_PASSWORD=... npx tsx scripts/backtest-value-model.ts [--scoring-format ppr]
+// The dump's season rows carry every board; the format flag selects which one
+// the loaders flatten into rank / position_rank.
 
 import PocketBase from 'pocketbase';
+import { isScoringFormat, type ScoringFormat } from '../src/lib/fantasy-scoring';
 import { computeAuctionEstimates, type HistoryRow } from '../src/lib/value-model';
 import {
   buildHistory,
@@ -32,16 +35,22 @@ const POSITIONS = ['QB', 'RB', 'WR', 'TE'];
 
 interface CliArgs {
   data: string | null;
+  scoringFormat: ScoringFormat;
 }
 
 function parseArgs(argv: string[]): CliArgs {
   let data: string | null = null;
+  let scoringFormat: ScoringFormat = 'half';
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--data') data = argv[++i] ?? '';
-    else throw new Error(`Unknown argument: "${arg}"`);
+    else if (arg === '--scoring-format') {
+      const value = argv[++i];
+      if (!isScoringFormat(value)) throw new Error('--scoring-format must be std, half, or ppr');
+      scoringFormat = value;
+    } else throw new Error(`Unknown argument: "${arg}"`);
   }
-  return { data };
+  return { data, scoringFormat };
 }
 
 interface Accuracy {
@@ -104,7 +113,7 @@ async function main(): Promise<void> {
 
   let data: ValueData;
   if (args.data) {
-    data = loadFromDump(args.data);
+    data = loadFromDump(args.data, args.scoringFormat);
     console.log(`data: offline dump ${args.data}\n`);
   } else {
     const pb = new PocketBase(POCKETBASE_URL);
@@ -114,7 +123,7 @@ async function main(): Promise<void> {
       throw new Error('PB_SUPERUSER_EMAIL and PB_SUPERUSER_PASSWORD are required (or pass --data)');
     }
     await pb.collection('_superusers').authWithPassword(email, password);
-    data = await loadFromPocketBase(pb);
+    data = await loadFromPocketBase(pb, args.scoringFormat);
     console.log('data: PocketBase\n');
   }
 
