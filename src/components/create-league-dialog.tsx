@@ -121,17 +121,11 @@ function CreateLeagueForm({ onClose }: { onClose: () => void }) {
       paidAuctionSlots: snake ? 0 : Number(paidSlots),
       minimumBid: snake ? 0 : Number(minimumBid),
     };
+    // validateRosterSettings covers the starter-position enum and every bound
+    // the create-league route enforces, so a dialog pass is a route pass.
     const validationError = validateRosterSettings(settings);
     if (validationError) {
       setError(validationError);
-      return;
-    }
-    if (
-      settings.starterPositions.some(
-        (p) => !['QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DST'].includes(p)
-      )
-    ) {
-      setError('Use QB, RB, WR, TE, FLEX, K, or DST for starter positions.');
       return;
     }
     try {

@@ -12,12 +12,14 @@ onRecordCreateRequest((e) => {
   // helpers used by the callback must be declared inside it.
   const defaultPaidAuctionSlots = 7;
 
+  // Fail closed like the draft-picks hook: unreadable settings on an existing
+  // league row must block the write, never read as "not snake".
   function leagueSettings(league) {
     if (!league) return null;
     try {
       return JSON.parse(league.get("settings").string());
-    } catch (_) {
-      return null;
+    } catch (err) {
+      throw new Error("League settings are unreadable; refusing nomination write");
     }
   }
 
