@@ -11,6 +11,7 @@ import {
   seasonMapFromRows,
 } from '@/lib/pb-mappers';
 import { useAuction } from '@/contexts/auction-context';
+import { useLeagueContext } from '@/contexts/league-context';
 import { useLeague } from '@/hooks/use-league';
 import {
   auctionNominationQueryKey,
@@ -36,6 +37,7 @@ export function RealtimeSync() {
   const queryClient = useQueryClient();
   const { selectedAuction, selectedAuctionId, selectedYear } = useAuction();
   const { settings } = useLeague();
+  const { selectedLeagueId } = useLeagueContext();
   const scoringFormat = settings.scoringFormat;
 
   // --- realtime connection recovery (3b) ---
@@ -54,6 +56,9 @@ export function RealtimeSync() {
       void queryClient.invalidateQueries({ queryKey: ['draft-picks'] });
       void queryClient.invalidateQueries({ queryKey: ['auction-nomination'] });
       void queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+      void queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      void queryClient.invalidateQueries({ queryKey: ['fantasy-teams'] });
+      void queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
     };
 
     const previousOnDisconnect = pb.realtime.onDisconnect;
@@ -141,28 +146,40 @@ export function RealtimeSync() {
     };
   }, [selectedAuctionId, selectedYear, scoringFormat, queryClient]);
 
-  // --- auctions (lifecycle of the selected draft) ---
-  // A commissioner completing the official draft is invisible to every other
-  // member without this: no pick or nomination event accompanies it, so the
-  // room would stay "live" until the next refetch. Invalidating is enough —
-  // the auctions query is one small list.
+  // League lists must refresh even on the landing page, without a selected draft.
+  // Capture the league in each callback and dispose late subscription promises
+  // so an A → B switch cannot leave A's stream attached to B's cache.
   useEffect(() => {
-    if (!selectedAuctionId) return;
-    let unsub: (() => void) | undefined;
-
-    pb.collection('auctions')
-      .subscribe(selectedAuctionId, () => {
-        void queryClient.invalidateQueries({ queryKey: ['auctions'] });
-      })
-      .then((fn) => {
-        unsub = fn;
-      })
-      .catch((err) => console.error('auctions subscribe failed:', err));
-
+    if (!selectedLeagueId) return;
+    const leagueId = selectedLeagueId;
+    let disposed = false;
+    const unsubscribe: (() => void)[] = [];
+    for (const collection of ['auctions', 'fantasy_teams'] as const) {
+      const queryKey = collection === 'auctions' ? ['auctions', leagueId] : ['fantasy-teams', leagueId];
+      const refresh = () => {
+        if (disposed) return;
+        void queryClient.invalidateQueries({ queryKey, exact: true });
+        void queryClient.invalidateQueries({ queryKey: ['historical-values', leagueId] });
+        void queryClient.invalidateQueries({ queryKey: ['computed-profiles', leagueId] });
+        if (collection === 'auctions') {
+          void queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
+        }
+      };
+      pb.collection(collection).subscribe('*', refresh, {
+        filter: pb.filter('league = {:leagueId}', { leagueId }),
+      }).then(fn => {
+        if (disposed) fn();
+        else {
+          unsubscribe.push(fn);
+          refresh();
+        }
+      }).catch(err => console.error(`${collection} subscribe failed:`, err));
+    }
     return () => {
-      unsub?.();
+      disposed = true;
+      unsubscribe.forEach(fn => fn());
     };
-  }, [selectedAuctionId, queryClient]);
+  }, [selectedLeagueId, queryClient]);
 
   // --- auction_nomination_events (shared official-auction state) ---
   useEffect(() => {

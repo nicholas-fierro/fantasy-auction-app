@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Auction } from '@/server/types/auction';
 
 const mocks = vi.hoisted(() => ({
+  selectedLeagueId: 'league-2',
+  leagueRef: { current: 'league-2' },
   enterDraftRoom: vi.fn(),
   queryClient: {
     setQueryData: vi.fn(),
@@ -9,6 +11,11 @@ const mocks = vi.hoisted(() => ({
     removeQueries: vi.fn(),
   },
   useMutation: vi.fn(),
+}));
+
+vi.mock('react', () => ({ useRef: () => mocks.leagueRef }));
+vi.mock('@/contexts/league-context', () => ({
+  useLeagueContext: () => ({ selectedLeagueId: mocks.selectedLeagueId }),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -54,10 +61,25 @@ type MutationOptions = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.selectedLeagueId = 'league-2';
+  mocks.leagueRef.current = 'league-2';
   mocks.useMutation.mockImplementation(options => options);
 });
 
 describe('auction creation navigation', () => {
+  it.each([useCreateAuction, useReplaceAuction])('seeds the returned league only and does not navigate after a league switch', hook => {
+    hook();
+    const options = mocks.useMutation.mock.calls[0][0] as MutationOptions;
+    mocks.selectedLeagueId = 'league-3';
+    hook(); // render after switching while the original request is pending
+    options.onSuccess(auction, { activeId: 'auction-old', resolution: 'delete' });
+    expect(mocks.enterDraftRoom).not.toHaveBeenCalled();
+    expect(mocks.queryClient.setQueryData).toHaveBeenCalledWith(['auctions', 'league-2'], expect.any(Function));
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['league-live-draft-counts'] });
+    const update = mocks.queryClient.setQueryData.mock.calls[0][1];
+    expect(update(undefined)).toEqual([auction]);
+    expect(update([auction])).toEqual([auction]);
+  });
   it('passes the returned league when entering a newly created draft', () => {
     useCreateAuction();
     const options = mocks.useMutation.mock.calls[0][0] as MutationOptions;

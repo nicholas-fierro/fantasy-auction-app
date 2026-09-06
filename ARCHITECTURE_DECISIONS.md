@@ -702,3 +702,43 @@ format), and `league_player_values` (league + player + year). Until then,
 auction-or-hybrid league per `(year, scoring format)`; snake leagues neither
 write nor read it. The migration keeps the `(player_id, year)` unique index
 unchanged.
+
+## AD-29: League selection scopes drafts and every history-derived computation
+
+**Decision.** Draft lists, available teams, historical prices, and computed manager
+profiles are keyed and filtered by the selected league. Draft creation sends that
+league explicitly and verifies membership, commissionership for official drafts,
+and team ownership before writing. The active-draft invariant from AD-21 is now
+one active draft per **league, owner, and type**, enforced by the lifecycle action
+and a matching partial unique index.
+
+The history and value-model loaders scope official drafts **before** choosing one
+per year or synthesizing undrafted players. The unused imported-season-price
+fallback is removed: shared season rows cannot identify the source league.
+Recalculation and both value-model CLI runners share the scoped loader; both
+scripts require `--league`, including offline runs. A dump must include the league
+and team metadata needed to select its inputs and settings.
+
+External boards retain their import contract of 12 teams, a $200 budget, and seven
+paid slots. They supply comps only to auction or hybrid leagues with that exact
+shape, and never supply a league's manager profiles. Snake leagues generate no
+auction-price history or projected-price writes. The declared `draftFormat`, not
+a paid-slot heuristic, determines the format; missing settings still default to
+`hybrid` without a backfill.
+
+**Why.** A user may legitimately read multiple leagues. API authorization cannot
+stop a newer completed draft from another league displacing the intended draft
+in an unscoped same-year collapse. Query scoping prevents that corruption, while
+league-keyed caches prevent old results surviving a league switch.
+
+**Consequences.** Integration tests use a member of both leagues and completed
+official drafts in the same season, checking prices, synthesized comps, profiles,
+and member/superuser loader parity. The active-draft index change is reflected in
+both the incremental migration and the baseline. Rolling it back requires the
+older, stricter active-draft invariant to hold; rollback never ends drafts.
+
+The AD-28 storage limitation remains: there is only one projected-price column
+per player and year, not one per scoring format or league. Isolated computation
+does not make that column capable of storing multiple auction leagues' results
+at once. Supporting that requires the planned `league_player_values` split; the
+current auction-plus-snake pairing does not introduce a second price writer.

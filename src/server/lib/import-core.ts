@@ -15,6 +15,7 @@ import Papa from 'papaparse';
 import type PocketBase from 'pocketbase';
 import type { RecordModel } from 'pocketbase';
 import { computeAuctionEstimates } from '@/lib/value-model';
+import { leagueValueModelConfig } from '@/lib/league-history';
 import { seasonRankingFieldName } from '@/lib/season-rankings';
 import {
   buildHistory,
@@ -511,9 +512,10 @@ export async function importAuctionValuesCore(
 export async function calculateProjectedValuesCore(
   pb: PocketBase,
   year: number,
-  scoringFormat: RankingScoringFormat = 'half'
+  leagueId: string
 ): Promise<CalculateProjectedResult> {
-  const data = await loadFromPocketBase(pb, scoringFormat);
+  const data = await loadFromPocketBase(pb, { leagueId });
+  const config = leagueValueModelConfig(data.scope);
   const history = buildHistory(data, year);
   const targets = buildTargets(data, year);
 
@@ -523,7 +525,7 @@ export async function calculateProjectedValuesCore(
     );
   }
 
-  const estimates = computeAuctionEstimates(history, targets.map(toValueTarget), year);
+  const estimates = computeAuctionEstimates(history, targets.map(toValueTarget), year, config);
 
   const priced = targets
     .map((target) => ({ target, value: estimates.get(target.key) ?? 0 }))

@@ -21,6 +21,15 @@
 import { readFileSync } from 'fs';
 import type PocketBase from 'pocketbase';
 import type { HistoryRow, ValueTarget } from '@/lib/value-model';
+import type { RecordModel } from 'pocketbase';
+import { mapLeagueRecord } from '@/lib/league';
+import {
+  historyAuctionFilter,
+  loadLeagueHistoryScope,
+  requireLeagueId,
+  selectHistoryAuctions,
+  type LeagueHistoryScope,
+} from '@/lib/league-history';
 import type { ScoringFormat } from '@/lib/fantasy-scoring';
 import { seasonRankingValue } from '@/lib/season-rankings';
 
@@ -30,6 +39,8 @@ const AUCTION_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE']);
 // Normalized source rows — identical shape from PocketBase or the JSON dump.
 interface RawAuction {
   id: string;
+  league: string;
+  created: string;
   year: number;
   status: string;
   type: string;
@@ -55,6 +66,7 @@ interface RawPlayer {
 }
 
 export interface ValueData {
+  scope: LeagueHistoryScope;
   auctions: RawAuction[];
   picks: RawPick[]; // official priced picks only (price > 0)
   seasons: RawSeason[];
@@ -84,91 +96,103 @@ export interface PricedPick {
 
 // --- Sources -------------------------------------------------------------
 
-// Load everything the builders need from PocketBase. Mirrors the collection
-// filters the app uses (official auctions, priced picks) but leaves year
-// filtering to the builders so a single fetch serves history and targets.
+function assertScoringFormat(scope: LeagueHistoryScope, scoringFormat?: ScoringFormat): void {
+  if (scoringFormat && scoringFormat !== scope.settings.scoringFormat) {
+    throw new Error(`Selected league uses ${scope.settings.scoringFormat}, not ${scoringFormat}`);
+  }
+}
+
+function normalizeAuction(row: RecordModel): RawAuction {
+  return {
+    id: row.id,
+    league: String(row.league ?? ''),
+    created: String(row.created ?? ''),
+    year: Number(row.year),
+    status: String(row.status ?? ''),
+    type: String(row.type ?? ''),
+    external: row.external === true,
+  };
+}
+
+function normalizeSeason(row: RecordModel, scoringFormat: ScoringFormat): RawSeason {
+  return {
+    id: row.id,
+    player_id: String(row.player_id),
+    year: Number(row.year),
+    rank: seasonRankingValue(row, 'rank', scoringFormat),
+    position_rank: seasonRankingValue(row, 'position_rank', scoringFormat),
+    projected_auction_value: Number(row.projected_auction_value ?? 0),
+  };
+}
+
 export async function loadFromPocketBase(
   pb: PocketBase,
-  scoringFormat: ScoringFormat = 'half'
+  options: { leagueId: string; scoringFormat?: ScoringFormat }
 ): Promise<ValueData> {
+  const scope = await loadLeagueHistoryScope(pb, options.leagueId);
+  assertScoringFormat(scope, options.scoringFormat);
   const auctionRecords = await pb.collection('auctions').getFullList({
-    filter: pb.filter('type = "official" && year > 0'),
+    filter: historyAuctionFilter(pb, scope),
     requestKey: null,
   });
-  const auctions: RawAuction[] = auctionRecords.map((a) => ({
-    id: a.id,
-    year: Number(a.year),
-    status: String(a.status ?? ''),
-    type: String(a.type ?? ''),
-    external: a.external === true,
-  }));
-
+  const auctions = selectHistoryAuctions(auctionRecords.map(normalizeAuction), scope);
   const picks: RawPick[] = [];
   for (const auction of auctions) {
-    const pickRecords = await pb.collection('draft_picks').getFullList({
+    const records = await pb.collection('draft_picks').getFullList({
       filter: pb.filter('auction_id = {:id} && price > 0', { id: auction.id }),
       requestKey: null,
     });
-    for (const pick of pickRecords) {
-      picks.push({
-        auction_id: auction.id,
-        player_id: String(pick.player_id),
-        price: Number(pick.price),
-      });
+    for (const pick of records) {
+      picks.push({ auction_id: auction.id, player_id: String(pick.player_id), price: Number(pick.price) });
     }
   }
-
-  const seasonRecords = await pb.collection('player_seasons').getFullList({ requestKey: null });
-  const seasons: RawSeason[] = seasonRecords.map((s) => ({
-    id: s.id,
-    player_id: String(s.player_id),
-    year: Number(s.year),
-    rank: seasonRankingValue(s, 'rank', scoringFormat),
-    position_rank: seasonRankingValue(s, 'position_rank', scoringFormat),
-    projected_auction_value: Number(s.projected_auction_value ?? 0),
-  }));
-
-  const playerRecords = await pb.collection('players').getFullList({ requestKey: null });
-  const players = new Map<string, RawPlayer>(
-    playerRecords.map((p) => [p.id, { id: p.id, name: String(p.name ?? ''), position: String(p.position ?? '') }])
-  );
-
-  return { auctions, picks, seasons, players };
+  const [seasonRecords, playerRecords] = await Promise.all([
+    pb.collection('player_seasons').getFullList({ requestKey: null }),
+    pb.collection('players').getFullList({ requestKey: null }),
+  ]);
+  return {
+    scope,
+    auctions,
+    picks,
+    seasons: seasonRecords.map((row) => normalizeSeason(row, scope.settings.scoringFormat)),
+    players: new Map(playerRecords.map((p) => [p.id, {
+      id: p.id, name: String(p.name ?? ''), position: String(p.position ?? ''),
+    }])),
+  };
 }
 
-// Load the same shape from an offline JSON dump. The dump's picks are already
-// filtered to official priced picks; numeric columns are numbers.
+// Offline dumps may span leagues; apply the same board selection as live reads.
 export function loadFromDump(
   path: string,
-  scoringFormat: ScoringFormat = 'half'
+  options: { leagueId: string; scoringFormat?: ScoringFormat }
 ): ValueData {
+  requireLeagueId(options.leagueId);
   const raw = JSON.parse(readFileSync(path, 'utf8')) as {
-    auctions: RawAuction[];
+    leagues?: RecordModel[];
+    fantasy_teams?: RecordModel[];
+    auctions: RecordModel[];
     picks: RawPick[];
-    seasons: RawSeason[];
+    seasons: RecordModel[];
     players: RawPlayer[];
   };
+  const league = raw.leagues?.find((row) => row.id === options.leagueId);
+  if (!league || !Array.isArray(raw.fantasy_teams)) {
+    throw new Error('The dump must include the selected league and fantasy_teams metadata');
+  }
+  const scope: LeagueHistoryScope = {
+    leagueId: options.leagueId,
+    settings: mapLeagueRecord(league).settings,
+    teamCount: raw.fantasy_teams.filter((team) => team.league === options.leagueId).length,
+  };
+  assertScoringFormat(scope, options.scoringFormat);
+  const auctions = selectHistoryAuctions(raw.auctions.map(normalizeAuction), scope);
+  const auctionIds = new Set(auctions.map((auction) => auction.id));
   return {
-    auctions: raw.auctions.map((a) => ({
-      id: a.id,
-      year: Number(a.year),
-      status: String(a.status ?? ''),
-      type: String(a.type ?? ''),
-      external: a.external === true,
-    })),
-    picks: raw.picks.map((p) => ({
-      auction_id: p.auction_id,
-      player_id: p.player_id,
-      price: Number(p.price),
-    })),
-    seasons: raw.seasons.map((s) => ({
-      id: s.id,
-      player_id: s.player_id,
-      year: Number(s.year),
-      rank: seasonRankingValue(s, 'rank', scoringFormat),
-      position_rank: seasonRankingValue(s, 'position_rank', scoringFormat),
-      projected_auction_value: Number(s.projected_auction_value ?? 0),
-    })),
+    scope,
+    auctions,
+    picks: raw.picks.filter((pick) => auctionIds.has(pick.auction_id) && Number(pick.price) > 0)
+      .map((pick) => ({ ...pick, price: Number(pick.price) })),
+    seasons: raw.seasons.map((row) => normalizeSeason(row, scope.settings.scoringFormat)),
     players: new Map(raw.players.map((p) => [p.id, { id: p.id, name: p.name, position: p.position }])),
   };
 }
@@ -184,6 +208,7 @@ function seasonIndex(data: ValueData): Map<string, RawSeason> {
 // External boards are excluded: this is the backtest's answer key, and scoring
 // our model against another league's prices would be measuring the wrong room.
 export function buildPricedPicks(data: ValueData, year: number): PricedPick[] {
+  if (data.scope.settings.draftFormat === 'snake') return [];
   const auctionIds = new Set(
     data.auctions
       .filter((a) => a.type === 'official' && a.year === year && !a.external)
@@ -216,6 +241,7 @@ export function buildPricedPicks(data: ValueData, year: number): PricedPick[] {
 // `ValueModelConfig.externalWeight` in collectComps, not here: this builder
 // states where a row came from, the model decides what it is worth.
 export function buildHistory(data: ValueData, beforeYear: number): HistoryRow[] {
+  if (data.scope.settings.draftFormat === 'snake') return [];
   const seasonByPlayer = seasonIndex(data);
   const rows: HistoryRow[] = [];
 

@@ -42,18 +42,19 @@ export function AuctionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const { data: allAuctions = [], isLoading: auctionsLoading } = useQuery({
-    queryKey: ['auctions'],
+    queryKey: ['auctions', selectedLeagueId],
     queryFn: async () => {
+      if (!selectedLeagueId) return [];
       const records = await pb.collection('auctions').getFullList({
         sort: '-drafted_at,-created',
+        filter: pb.filter('league = {:leagueId} && external != true', { leagueId: selectedLeagueId }),
       });
       return records.filter((record) => record.external !== true).map(mapAuctionRecord);
     },
     enabled: !!selectedLeagueId,
   });
 
-  // NFI-76 moves this league condition into the PocketBase query and query key.
-  // Keep the provider output scoped now so no selected-league surface can mix drafts.
+  // Also guard cached data: a late write must never expose another league's draft.
   const auctions = useMemo(
     () => allAuctions.filter(auction => auction.league === selectedLeagueId),
     [allAuctions, selectedLeagueId],
@@ -107,8 +108,8 @@ export function AuctionProvider({ children }: { children: ReactNode }) {
   // the selection the instant that draft stops being active — dropping whoever
   // was watching onto the landing page instead of the finished board.
   useEffect(() => {
-    if (!explicitAuctionId && activeAuction) setSelectedAuctionId(activeAuction.id);
-  }, [explicitAuctionId, activeAuction, setSelectedAuctionId]);
+    if (!explicitAuction && activeAuction) setSelectedAuctionId(activeAuction.id);
+  }, [explicitAuction, activeAuction, setSelectedAuctionId]);
 
   // Only persist a real selection — clearing it (going home, deleting a draft)
   // shouldn't erase where to return to on the next reload.

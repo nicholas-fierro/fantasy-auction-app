@@ -111,7 +111,17 @@ export function NewAuctionModal({ isOpen, onClose, initialType = 'mock' }: NewAu
   const wasOpen = useRef(false);
 
   const { auctions } = useAuction();
-  const { selectedLeagueId } = useLeagueContext();
+  const { selectedLeagueId, selectedLeague } = useLeagueContext();
+  const currentLeagueId = useRef(selectedLeagueId);
+  currentLeagueId.current = selectedLeagueId;
+  const [orderLeagueId, setOrderLeagueId] = useState(selectedLeagueId);
+  // Reset before committing a league switch, not in a later effect where old
+  // teams or a destructive confirmation could briefly target the new league.
+  if (orderLeagueId !== selectedLeagueId) {
+    setOrderLeagueId(selectedLeagueId);
+    setOrderedTeams([]);
+    setConflictingAuction(null);
+  }
   const isCommissioner = useIsCommissioner();
   const { data: teams = [] } = useAllFantasyTeams();
   const createAuction = useCreateAuction();
@@ -213,11 +223,14 @@ export function NewAuctionModal({ isOpen, onClose, initialType = 'mock' }: NewAu
   };
 
   const createNewAuction = async () => {
+    const requestLeagueId = selectedLeagueId;
     setIsLoading(true);
     try {
       await createAuction.mutateAsync(auctionInput());
-      setConflictingAuction(null);
-      onClose();
+      if (currentLeagueId.current === requestLeagueId) {
+        setConflictingAuction(null);
+        onClose();
+      }
     } catch (error) {
       console.error('Failed to create auction:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to create auction');
@@ -232,7 +245,10 @@ export function NewAuctionModal({ isOpen, onClose, initialType = 'mock' }: NewAu
       toast.error('Select a league before starting a draft');
       return;
     }
-    if (type === 'official' && !isCommissioner) return;
+    if (type === 'official' && !isCommissioner) {
+      toast.error('Only the selected league commissioner can start an official auction');
+      return;
+    }
 
     if (sameTypeActiveAuction) {
       setConflictingAuction(sameTypeActiveAuction);
@@ -243,8 +259,9 @@ export function NewAuctionModal({ isOpen, onClose, initialType = 'mock' }: NewAu
   };
 
   const resolveConflictAndCreate = async (resolution: 'complete' | 'delete') => {
-    if (!conflictingAuction) return;
+    if (!conflictingAuction || conflictingAuction.league !== selectedLeagueId) return;
 
+    const requestLeagueId = selectedLeagueId;
     setIsLoading(true);
     try {
       await replaceAuction.mutateAsync({
@@ -252,8 +269,10 @@ export function NewAuctionModal({ isOpen, onClose, initialType = 'mock' }: NewAu
         input: auctionInput(),
         resolution,
       });
-      setConflictingAuction(null);
-      onClose();
+      if (currentLeagueId.current === requestLeagueId) {
+        setConflictingAuction(null);
+        onClose();
+      }
     } catch (error) {
       console.error('Failed to replace active auction:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to start auction');
@@ -272,7 +291,7 @@ export function NewAuctionModal({ isOpen, onClose, initialType = 'mock' }: NewAu
         <DialogHeader className="shrink-0 text-left max-md:pt-4 max-md:pr-12 max-md:pl-4">
           <DialogTitle>New Auction</DialogTitle>
           <DialogDescription>
-            Set a name and the draft order for the new auction.
+            Set a name and the draft order for {selectedLeague?.name ?? 'the selected league'}.
           </DialogDescription>
         </DialogHeader>
 
@@ -334,6 +353,11 @@ export function NewAuctionModal({ isOpen, onClose, initialType = 'mock' }: NewAu
                 </Button>
               )}
             </div>
+            {!isCommissioner && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Only this league’s commissioner can start an official auction.
+              </p>
+            )}
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {type === 'official'
                 ? 'Official prices become trusted historical data used to estimate future costs.'

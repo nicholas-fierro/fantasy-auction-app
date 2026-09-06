@@ -4,7 +4,7 @@
 //
 // The model's history is league-agnostic: buildHistory (src/server/lib/
 // value-data.ts) reduces every pick to { year, position, position_rank, rank,
-// price }. Any auction of the same shape — 12 teams, $200, N paid slots — is
+// price }. Any auction of the same shape — 12 teams, $200, 7 paid slots — is
 // the same data type as our own, so an outside league's board is usable comp
 // material.
 //
@@ -35,6 +35,7 @@
 
 import { readFileSync } from 'fs';
 import PocketBase, { type RecordModel } from 'pocketbase';
+import { EXTERNAL_BOARD_SHAPE } from '../src/lib/league-history';
 
 const POCKETBASE_URL = process.env.POCKETBASE_URL || 'http://127.0.0.1:8090';
 const WRITE_BATCH_SIZE = 25;
@@ -98,6 +99,10 @@ function checkBudget(file: ExternalAuctionFile): string[] {
   const budget = file.budget ?? 200;
   const paidSlots = file.paidSlots ?? 7;
   const problems: string[] = [];
+  if (budget !== EXTERNAL_BOARD_SHAPE.budget || paidSlots !== EXTERNAL_BOARD_SHAPE.paidAuctionSlots ||
+    file.teams.length !== EXTERNAL_BOARD_SHAPE.teamCount) {
+    problems.push('External boards must have 12 teams, a $200 budget, and 7 paid slots');
+  }
   for (const team of file.teams) {
     const total = team.picks.reduce((sum, [, price]) => sum + price, 0);
     if (team.picks.length !== paidSlots) {

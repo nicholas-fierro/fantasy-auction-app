@@ -4,7 +4,7 @@ import { useAuction } from '@/contexts/auction-context';
 import { useLeagueContext } from '@/contexts/league-context';
 import type { LeagueInfo } from '@/lib/league';
 import { pb } from '@/lib/pb-client';
-import type { RosterSettings } from '@/lib/roster';
+import type { DraftFormat, RosterSettings } from '@/lib/roster';
 
 export type { LeagueInfo, LeagueMembership } from '@/lib/league';
 
@@ -15,6 +15,10 @@ export function useLeague(): {
 } {
   const { selectedLeague, settings, isCommissioner } = useLeagueContext();
   return { league: selectedLeague, settings, isCommissioner };
+}
+
+export function useDraftFormat(): DraftFormat {
+  return useLeagueContext().format;
 }
 
 export function useCommissionedLeagues(): LeagueInfo[] {

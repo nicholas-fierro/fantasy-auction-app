@@ -1005,7 +1005,7 @@ migrate((app) => {
         }
       ],
       "indexes": [
-        "CREATE UNIQUE INDEX `idx_auctions_active_user_type` ON `auctions` (`user`, `type`) WHERE status = 'active' AND user != ''"
+        "CREATE UNIQUE INDEX `idx_auctions_active_league_user_type` ON `auctions` (`league`, `user`, `type`) WHERE status = 'active' AND user != ''"
       ],
       "created": "2026-07-08 00:50:11.565Z",
       "updated": "2026-07-17 00:16:59.505Z",

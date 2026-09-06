@@ -39,6 +39,37 @@ export const DEFAULT_ROSTER_SETTINGS: RosterSettings = {
   draftFormat: 'hybrid',
 };
 
+// Shared form validation; draft format is explicit, never inferred from paid slots.
+export function validateRosterSettings(settings: RosterSettings): string | null {
+  if (!isDraftFormat(settings.draftFormat)) {
+    return 'Choose a valid draft format';
+  }
+
+  const isSnake = settings.draftFormat === 'snake';
+  if (!Number.isFinite(settings.budget) || (isSnake ? settings.budget < 0 : settings.budget <= 0)) {
+    return isSnake ? 'Budget must be a non-negative number' : 'Budget must be a positive number';
+  }
+  if (!Number.isInteger(settings.paidAuctionSlots) || (isSnake ? settings.paidAuctionSlots !== 0 : settings.paidAuctionSlots <= 0)) {
+    return isSnake ? 'Snake drafts must have zero paid slots' : 'Paid slots must be a positive integer';
+  }
+  if (!Number.isFinite(settings.minimumBid) || settings.minimumBid < (isSnake ? 0 : 1)) {
+    return isSnake ? 'Minimum bid must be a non-negative number' : 'Minimum bid must be at least $1';
+  }
+  if (!Number.isInteger(settings.benchSize) || settings.benchSize < 0) {
+    return 'Bench size must be a non-negative integer';
+  }
+  if (settings.starterPositions.length === 0) {
+    return 'Add at least one starter position';
+  }
+  if (settings.paidAuctionSlots > settings.starterPositions.length + settings.benchSize) {
+    return 'Paid slots cannot exceed starter positions plus bench size';
+  }
+  if (settings.budget < settings.paidAuctionSlots * settings.minimumBid) {
+    return 'Budget must cover all paid slots at the minimum bid';
+  }
+  return null;
+}
+
 export interface RosterSlot {
   position: string;
   player: Player | null;

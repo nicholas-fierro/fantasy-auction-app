@@ -11,11 +11,12 @@
 // Averages across the four years are printed as an old-vs-new table.
 //
 // Usage:
-//   npx tsx scripts/backtest-value-model.ts --data <dump.json>
-//   PB_SUPERUSER_EMAIL=... PB_SUPERUSER_PASSWORD=... npx tsx scripts/backtest-value-model.ts
+//   npx tsx scripts/backtest-value-model.ts --league <league-id> --data <dump.json>
+//   npx tsx scripts/backtest-value-model.ts --league <league-id>
 
 import PocketBase from 'pocketbase';
 import { computeAuctionEstimates, type HistoryRow } from '../src/lib/value-model';
+import { leagueValueModelConfig } from '../src/lib/league-history';
 import {
   buildHistory,
   buildPricedPicks,
@@ -31,17 +32,21 @@ const TEST_YEARS = [2022, 2023, 2024, 2025];
 const POSITIONS = ['QB', 'RB', 'WR', 'TE'];
 
 interface CliArgs {
+  leagueId: string;
   data: string | null;
 }
 
 function parseArgs(argv: string[]): CliArgs {
   let data: string | null = null;
+  let leagueId = '';
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--data') data = argv[++i] ?? '';
+    else if (arg === '--league') leagueId = argv[++i] ?? '';
     else throw new Error(`Unknown argument: "${arg}"`);
   }
-  return { data };
+  if (!leagueId.trim() || leagueId.startsWith('--')) throw new Error('--league is required');
+  return { data, leagueId };
 }
 
 interface Accuracy {
@@ -57,7 +62,7 @@ function scoreYear(
   history: HistoryRow[]
 ): { accuracy: Accuracy; predPositiveByPos: Map<string, number> } {
   const targets = buildTargets(data, year);
-  const estimates = computeAuctionEstimates(history, targets.map(toValueTarget), year);
+  const estimates = computeAuctionEstimates(history, targets.map(toValueTarget), year, leagueValueModelConfig(data.scope));
   const keyByPlayer = new Map(targets.map((t) => [t.player_id, t.key]));
 
   const priced = buildPricedPicks(data, year);
@@ -104,7 +109,7 @@ async function main(): Promise<void> {
 
   let data: ValueData;
   if (args.data) {
-    data = loadFromDump(args.data);
+    data = loadFromDump(args.data, { leagueId: args.leagueId });
     console.log(`data: offline dump ${args.data}\n`);
   } else {
     const pb = new PocketBase(POCKETBASE_URL);
@@ -114,7 +119,7 @@ async function main(): Promise<void> {
       throw new Error('PB_SUPERUSER_EMAIL and PB_SUPERUSER_PASSWORD are required (or pass --data)');
     }
     await pb.collection('_superusers').authWithPassword(email, password);
-    data = await loadFromPocketBase(pb);
+    data = await loadFromPocketBase(pb, { leagueId: args.leagueId });
     console.log('data: PocketBase\n');
   }
 

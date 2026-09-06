@@ -80,7 +80,7 @@ const expectedCollections = [
 const expectedIndexes: Record<string, string[]> = {
   users: ['idx_email__pb_users_auth_', 'idx_tokenKey__pb_users_auth_'],
   players: ['idx_players_gsis_id'],
-  auctions: ['idx_auctions_active_user_type'],
+  auctions: ['idx_auctions_active_league_user_type'],
   draft_picks: ['idx_draft_picks_auction_pick_order', 'idx_draft_picks_auction_player'],
   watchlist: ['idx_watchlist_player_user'],
   auction_teams: ['idx_auction_teams_auction_team'],
@@ -277,8 +277,8 @@ async function createFixture(): Promise<Fixture> {
   );
   const createAuction = (data: Record<string, unknown>) =>
     admin.collection('auctions').create(data, { requestKey: null });
-  // idx_auctions_active_user_type allows only one active auction per owner and
-  // type, so each active official draft needs its own owner. userA stays
+  // Each owner may have only one active draft of each type per league,
+  // so these official drafts need distinct owners. userA stays
   // commissioner, so clientA still reaches every one of them via that lane.
   const [officialAuction, mockAuction, nominationAuction, orderingAuction] = await Promise.all([
     createAuction({
@@ -667,18 +667,46 @@ describe('authorization rules (AD-2 and AD-18)', () => {
     await admin.collection('auctions').delete(board.id);
   });
 
-  it('rejects a second active auction of the same type for one owner', async () => {
+  it('limits active drafts per owner and type within each league, not across leagues', async () => {
     const { clientA, userA, league } = fixture;
     await expectApiFailure(clientA.collection('auctions').create({
       name: 'Duplicate Active Official', year: 2026, status: 'active', type: 'official',
       user: userA.id, league: league.id,
     }), [400]);
-    // The index is partial on status = 'active', so a completed one still fits.
-    const completed = await clientA.collection('auctions').create({
-      name: 'Completed Official', year: 2026, status: 'completed', type: 'official',
-      user: userA.id, league: league.id,
+    const otherLeague = await admin.collection('leagues').create({
+      name: 'Concurrent Draft League', commissioner: userA.id,
     });
-    await admin.collection('auctions').delete(completed.id);
+    const otherTeam = await admin.collection('fantasy_teams').create({
+      name: 'Concurrent Draft Team', league: otherLeague.id,
+    });
+    const membership = await admin.collection('league_members').create({
+      league: otherLeague.id, user: userA.id, fantasy_team: otherTeam.id,
+    });
+    const drafts: RecordModel[] = [];
+    try {
+      drafts.push(await clientA.collection('auctions').create({
+        name: 'Other League Official', year: 2026, status: 'active', type: 'official',
+        user: userA.id, league: otherLeague.id,
+      }));
+      drafts.push(await clientA.collection('auctions').create({
+        name: 'Other League Mock', year: 2026, status: 'active', type: 'mock',
+        user: userA.id, league: otherLeague.id,
+      }));
+      await expectApiFailure(clientA.collection('auctions').create({
+        name: 'Other League Duplicate', year: 2026, status: 'active', type: 'official',
+        user: userA.id, league: otherLeague.id,
+      }), [400]);
+      drafts.push(await clientA.collection('auctions').create({
+        name: 'Completed Official', year: 2026, status: 'completed', type: 'official',
+        user: userA.id, league: league.id,
+      }));
+      expect(drafts.map((draft) => draft.status)).toEqual(['active', 'active', 'completed']);
+    } finally {
+      for (const draft of drafts) await admin.collection('auctions').delete(draft.id);
+      await admin.collection('league_members').delete(membership.id);
+      await admin.collection('fantasy_teams').delete(otherTeam.id);
+      await admin.collection('leagues').delete(otherLeague.id);
+    }
   });
 });
 

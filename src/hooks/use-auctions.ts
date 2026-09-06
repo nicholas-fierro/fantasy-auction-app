@@ -1,5 +1,7 @@
 'use client';
 
+import { useRef } from 'react';
+import { useLeagueContext } from '@/contexts/league-context';
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { createAuction, completeAuction, deleteAuction, replaceAuction } from '@/server/actions/auctions';
 import { Auction, CreateAuctionInput, ReplaceAuctionResolution } from '@/server/types/auction';
@@ -10,15 +12,19 @@ import { useNavigation } from '@/contexts/navigation-context';
 // Selecting an id the cache doesn't hold yet would flash the "no active draft"
 // landing on the way into the new draft room, so seed the record first.
 function seedNewAuction(queryClient: QueryClient, newAuction: Auction) {
-  queryClient.setQueryData<Auction[]>(['auctions'], (old) =>
+  queryClient.setQueryData<Auction[]>(['auctions', newAuction.league], (old) =>
     old ? [newAuction, ...old.filter((a) => a.id !== newAuction.id)] : [newAuction]
   );
   queryClient.invalidateQueries({ queryKey: ['auctions'] });
+  queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
 }
 
 export function useCreateAuction() {
   const queryClient = useQueryClient();
   const { enterDraftRoom } = useNavigation();
+  const { selectedLeagueId } = useLeagueContext();
+  const currentLeagueId = useRef(selectedLeagueId);
+  currentLeagueId.current = selectedLeagueId;
 
   return useMutation({
     mutationFn: (input: CreateAuctionInput) => createAuction(input),
@@ -26,10 +32,15 @@ export function useCreateAuction() {
       seedNewAuction(queryClient, newAuction);
       queryClient.invalidateQueries({ queryKey: ['historical-values'] });
       queryClient.invalidateQueries({ queryKey: ['computed-profiles'] });
-      enterDraftRoom(newAuction.id, newAuction.league);
+      // A request started in A may finish after the user switches to B.
+      // Refresh A's cache, but never navigate them back out of B.
+      if (currentLeagueId.current === newAuction.league) {
+        enterDraftRoom(newAuction.id, newAuction.league);
+      }
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
     },
   });
 }
@@ -37,6 +48,9 @@ export function useCreateAuction() {
 export function useReplaceAuction() {
   const queryClient = useQueryClient();
   const { enterDraftRoom } = useNavigation();
+  const { selectedLeagueId } = useLeagueContext();
+  const currentLeagueId = useRef(selectedLeagueId);
+  currentLeagueId.current = selectedLeagueId;
 
   return useMutation({
     mutationFn: ({ activeId, input, resolution }: {
@@ -52,10 +66,15 @@ export function useReplaceAuction() {
         queryClient.invalidateQueries({ queryKey: ['historical-values'] });
         queryClient.invalidateQueries({ queryKey: ['computed-profiles'] });
       }
-      enterDraftRoom(newAuction.id, newAuction.league);
+      // A request started in A may finish after the user switches to B.
+      // Refresh A's cache, but never navigate them back out of B.
+      if (currentLeagueId.current === newAuction.league) {
+        enterDraftRoom(newAuction.id, newAuction.league);
+      }
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
     },
   });
 }
@@ -70,6 +89,7 @@ export function useCompleteAuction() {
       // selected and `useCompletedDraftRedirect` moves anyone viewing it to the
       // read-only archive of that same draft.
       queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
       // A completed official auction's prices become historical data.
       queryClient.invalidateQueries({ queryKey: ['historical-values'] });
       queryClient.invalidateQueries({ queryKey: ['computed-profiles'] });
@@ -87,7 +107,10 @@ export function useDeleteAuction() {
       if (selectedAuctionId === deletedId) setSelectedAuctionId(null);
       queryClient.removeQueries({ queryKey: ['draft-picks', deletedId] });
       queryClient.removeQueries({ queryKey: ['fantasy-teams', 'auction', deletedId] });
+      queryClient.invalidateQueries({ queryKey: ['historical-values'] });
+      queryClient.invalidateQueries({ queryKey: ['computed-profiles'] });
       queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
     },
   });
 }

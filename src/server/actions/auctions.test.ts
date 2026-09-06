@@ -58,8 +58,8 @@ function createPocketBase(
     }))),
   };
   const auctions = {
-    getFullList: vi.fn(async ({ filter }: { filter: { type: AuctionType } }) =>
-      activeAuctions.filter(auction => auction.type === filter.type)
+    getFullList: vi.fn(async ({ filter }: { filter: { type: AuctionType; leagueId: string } }) =>
+      activeAuctions.filter(auction => auction.type === filter.type && (auction.league ?? 'league-1') === filter.leagueId)
     ),
     create: vi.fn(async (data: Record<string, unknown>) => ({ ...auctionRecord, ...data })),
     update: vi.fn(),
@@ -78,6 +78,7 @@ function createPocketBase(
       })),
     },
     leagues: { getOne: vi.fn(async () => ({ commissioner })) },
+    fantasy_teams: { getFullList: vi.fn(async () => [{ id: 'team-1' }]) },
     auctions,
     auction_teams: auctionTeams,
     draft_picks: { getFullList: vi.fn(async () => picks) },
@@ -120,6 +121,36 @@ afterEach(() => {
 });
 
 describe('createAuction active draft lifecycle', () => {
+  it.each(['mock', 'official'] as const)('allows an active %s in a different league', async type => {
+    const fake = createPocketBase([{ id: 'other-draft', type, league: 'league-2' }]);
+    auth.requireAuth.mockResolvedValue({ pb: fake.pb, userId: 'user-1' });
+    await expect(createAuction(input(type))).resolves.toMatchObject({ league: 'league-1' });
+    expect(fake.auctions.update).not.toHaveBeenCalled();
+  });
+
+  it('requires an explicit league rather than selecting a membership', async () => {
+    const fake = createPocketBase([]);
+    auth.requireAuth.mockResolvedValue({ pb: fake.pb, userId: 'user-1' });
+    await expect(createAuction({ ...input('mock'), leagueId: '' })).rejects.toThrow('Select a league');
+    expect(fake.auctions.create).not.toHaveBeenCalled();
+  });
+
+  it.each(['mock', 'official'] as const)('rejects foreign teams before creating a %s draft', async type => {
+    const fake = createPocketBase([]);
+    auth.requireAuth.mockResolvedValue({ pb: fake.pb, userId: 'user-1' });
+    const foreignTeam = { ...input(type), teamOrder: [{ fantasy_team_id: 'foreign-team', draft_order: 1 }] };
+    await expect(createAuction(foreignTeam)).rejects.toThrow('Every draft team must belong to the selected league');
+    expect(fake.pb.filter).toHaveBeenCalledWith('league = {:leagueId}', { leagueId: 'league-1' });
+    expect(fake.auctions.create).not.toHaveBeenCalled();
+    expect(fake.auctionTeams.create).not.toHaveBeenCalled();
+  });
+
+  it.each([{ teamOrder: [] }, { teamOrder: [input('mock').teamOrder[0], input('mock').teamOrder[0]] }])('rejects empty or duplicate teams', async ({ teamOrder }) => {
+    const fake = createPocketBase([]);
+    auth.requireAuth.mockResolvedValue({ pb: fake.pb, userId: 'user-1' });
+    await expect(createAuction({ ...input('mock'), teamOrder })).rejects.toThrow('non-empty draft order without duplicate teams');
+    expect(fake.auctions.create).not.toHaveBeenCalled();
+  });
   it.each([
     ['mock', 'official'],
     ['official', 'mock'],
@@ -130,8 +161,8 @@ describe('createAuction active draft lifecycle', () => {
     await expect(createAuction(input(type))).resolves.toMatchObject({ type, status: 'active' });
 
     expect(fake.pb.filter).toHaveBeenCalledWith(
-      'status = "active" && user = {:userId} && type = {:type}',
-      { userId: 'user-1', type }
+      'status = "active" && user = {:userId} && type = {:type} && league = {:leagueId}',
+      { userId: 'user-1', type, leagueId: 'league-1' }
     );
     expect(fake.auctions.update).not.toHaveBeenCalled();
     expect(fake.auctions.create).toHaveBeenCalledTimes(1);
@@ -201,6 +232,13 @@ describe('createAuction active draft lifecycle', () => {
 });
 
 describe('replaceAuction', () => {
+  it('rejects foreign teams before closing the current draft', async () => {
+    const fake = createPocketBase([]);
+    auth.requireAuth.mockResolvedValue({ pb: fake.pb, userId: 'user-1' });
+    const replacement = { ...input('mock'), teamOrder: [{ fantasy_team_id: 'foreign-team', draft_order: 1 }] };
+    await expect(replaceAuction('active-auction', replacement, 'delete')).rejects.toThrow('Every draft team must belong to the selected league');
+    expect(fake.pb.createBatch).not.toHaveBeenCalled();
+  });
   it.each([
     [{ status: 'completed', type: 'mock' }, input('mock')],
     [{ status: 'active', type: 'official' }, input('mock')],
