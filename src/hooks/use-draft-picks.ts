@@ -28,7 +28,7 @@ export function useAllDraftPicks() {
         }),
         ensureSeasonMap(queryClient, selectedYear),
       ]);
-      return records.map(record => mapPickRecord(record, seasonByPlayerId.get(record.player_id), scoringFormat));
+      return records.map(record => mapPickRecord(record, scoringFormat, seasonByPlayerId.get(record.player_id)));
     },
     enabled: !!selectedAuctionId,
   });
@@ -52,7 +52,7 @@ export function useDraftPick(id: string) {
         const seasonMap = await ensureSeasonMap(queryClient, year);
         season = seasonMap.get(record.player_id);
       }
-      return mapPickRecord(record, season, scoringFormat);
+      return mapPickRecord(record, scoringFormat, season);
     },
     enabled: !!id,
   });
@@ -79,7 +79,7 @@ export function useDraftPicksByTeam(teamId: string) {
         }),
         ensureSeasonMap(queryClient, selectedYear),
       ]);
-      return records.map(record => mapPickRecord(record, seasonByPlayerId.get(record.player_id), scoringFormat));
+      return records.map(record => mapPickRecord(record, scoringFormat, seasonByPlayerId.get(record.player_id)));
     },
     enabled: !!selectedAuctionId && !!teamId,
   });
@@ -134,7 +134,7 @@ export function useCreateDraftPick() {
       if (year != null && record.player_id) {
         season = (await ensureSeasonMap(queryClient, year)).get(record.player_id);
       }
-      return mapPickRecord(record, season, scoringFormat);
+      return mapPickRecord(record, scoringFormat, season);
     },
     onSuccess: (newDraftPick) => {
       const auctionId = newDraftPick.auction_id;
@@ -190,7 +190,7 @@ export function useUpdateDraftPickPrice() {
       if (record.player_id) {
         season = (await ensureSeasonMap(queryClient, selectedYear)).get(record.player_id);
       }
-      return mapPickRecord(record, season, scoringFormat);
+      return mapPickRecord(record, scoringFormat, season);
     },
     onMutate: async ({ id, price }) => {
       await queryClient.cancelQueries({ queryKey: ['draft-picks'] });

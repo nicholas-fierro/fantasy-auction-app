@@ -16,16 +16,21 @@ export async function loadTeamProfiles(
   const scope = await loadLeagueHistoryScope(client, leagueId);
   const history = historicalValues ?? await computeHistoricalValues(leagueId, client);
   const index = buildHistoryIndex(history.filter((row) => !row.external));
-  const [teams, auctions, seasons] = await Promise.all([
+  const [teams, auctions] = await Promise.all([
     client.collection('fantasy_teams').getFullList({
       filter: client.filter('league = {:leagueId}', { leagueId }), requestKey: null,
     }),
     client.collection('auctions').getFullList<RecordModel & HistoryAuction>({
       filter: historyAuctionFilter(client, scope, false), requestKey: null,
     }),
-    // Earlier season rows establish known veterans even when a rookie flag is absent.
-    client.collection('player_seasons').getFullList({ requestKey: null }),
   ]);
+  // Season rows are only consumed for the scoped auction years (plus every
+  // earlier year, which establishes known veterans even when a rookie flag is
+  // absent) — never the whole table.
+  const maxYear = Math.max(0, ...selectHistoryAuctions(auctions, scope, false).map((auction) => auction.year));
+  const seasons = maxYear > 0 ? await client.collection('player_seasons').getFullList({
+    filter: client.filter('year <= {:maxYear}', { maxYear }), requestKey: null,
+  }) : [];
   const teamIds = teams.filter((team) => team.league === leagueId).map((team) => team.id);
   const allowedTeams = new Set(teamIds);
   const seasonsByYear = new Map<number, Map<string, RecordModel>>();
@@ -52,8 +57,11 @@ export async function loadTeamProfiles(
       if (!player || !allowedTeams.has(teamId)) continue;
       const playerId = String(pick.player_id);
       const season = seasonsByYear.get(year)?.get(playerId);
-      const rank = seasonRankingValue(season ?? {}, 'rank', scope.settings.scoringFormat);
-      const positionRank = seasonRankingValue(season ?? {}, 'position_rank', scope.settings.scoringFormat);
+      // Profiles estimate against the same comp neighborhoods as history: a
+      // missing season row means no rank, not rank 0 at the top of the board.
+      if (!season) continue;
+      const rank = seasonRankingValue(season, 'rank', scope.settings.scoringFormat);
+      const positionRank = seasonRankingValue(season, 'position_rank', scope.settings.scoringFormat);
       const estimate = estimateValue(index, player.position, positionRank, rank, year);
       const isRookie = season?.is_rookie === true;
       const list = picksByTeam.get(teamId) ?? [];

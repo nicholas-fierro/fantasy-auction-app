@@ -29,7 +29,7 @@ export function useWatchlist() {
         ensureSeasonMap(queryClient, selectedYear),
       ]);
       return records.map(record =>
-        mapWatchlistRecord(record, seasonByPlayerId.get(record.player_id), scoringFormat)
+        mapWatchlistRecord(record, scoringFormat, seasonByPlayerId.get(record.player_id))
       );
     },
   });

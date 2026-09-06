@@ -52,7 +52,10 @@ export async function computeHistoricalValues(
     for (const pick of picks) {
       const playerId = String(pick.player_id);
       drafted.add(playerId);
+      // A priced pick with no season row for that year carries no rank to key
+      // comps off — skipping keeps a $40 price out of the top of the board.
       const season = seasons.get(playerId);
+      if (!season) continue;
       const player = pick.expand?.player_id;
       rows.push({
         year: auction.year,

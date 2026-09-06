@@ -700,18 +700,26 @@ import, split season facts, format rankings, and league values into
 format), and `league_player_values` (league + player + year). Until then,
 `projected_auction_value` remains on `player_seasons` and is valid for at most one
 auction-or-hybrid league per `(year, scoring format)`; snake leagues neither
-write nor read it. The migration keeps the `(player_id, year)` unique index
-unchanged.
+write nor read it. Standard and Half-PPR share the legacy columns, so one
+league's import overwrites the other's board for that year — the import view
+warns, and the per-format split above ends it. The migration keeps the
+`(player_id, year)` unique index unchanged.
 
 **ADP presence (NFI-81).** ADP is derived as `rank + ecr_vs_adp` from the
 selected scoring board, never stored. PocketBase number fields default to zero,
 so `ecr_vs_adp_known` and `ecr_vs_adp_ppr_known` preserve whether the source
 actually supplied a delta. Missing columns, blank cells, and invalid deltas clear
 the selected board's delta and marker on import, rather than combining a stale
-delta with a new rank. Mappers expose unknown deltas as `null`; known zero remains
-a valid comparison value. Migration backfills only nonzero deltas: historical
-zeros are ambiguous and require source reimport before ADP can be shown. ADP
-also remains unavailable for missing/invalid ranks or nonpositive derived values.
+delta with a new rank. That clearing is the one exception to "absent means leave
+alone": importing a partial CSV without a delta column wipes ADP for every player
+in that year until a full export is re-imported, and the ADP column plus the
+survival signal go blank with it. Mappers expose unknown deltas as `null`; known
+zero remains a valid comparison value. Only integer deltas count as known —
+FantasyPros deltas are whole picks, and a fractional value would be discarded as
+unknown rather than rounded, which is the safe direction. Migration backfills
+only nonzero deltas: historical zeros are ambiguous and require source reimport
+before ADP can be shown. ADP also remains unavailable for missing/invalid ranks
+or nonpositive derived values.
 
 ## AD-29: League selection scopes drafts and every history-derived computation
 

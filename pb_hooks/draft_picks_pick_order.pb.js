@@ -25,12 +25,16 @@
 onRecordCreateRequest((e) => {
   // PocketBase executes request callbacks in an isolated JSVM context, so all
   // helpers used by the callback must be declared inside it.
+  // Fail closed: a league row exists but its settings are unreadable, so the
+  // caller cannot prove the league is NOT snake — throw rather than degrade
+  // to auction permissions. No league row (unscoped auction) is the only
+  // legitimate null.
   function leagueSettings(league) {
     if (!league) return null;
     try {
       return JSON.parse(league.get("settings").string());
-    } catch (_) {
-      return null;
+    } catch (err) {
+      throw new Error("League settings are unreadable; refusing draft-pick write");
     }
   }
 

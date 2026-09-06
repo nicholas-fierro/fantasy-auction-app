@@ -109,8 +109,8 @@ export function RealtimeSync() {
 
       const mapped = mapPickRecord(
         e.record,
-        seasonForPlayer(e.record.player_id),
-        scoringFormat
+        scoringFormat,
+        seasonForPlayer(e.record.player_id)
       );
 
       const upsert = (old: DraftPickWithDetails[] | undefined): DraftPickWithDetails[] => {
@@ -249,8 +249,8 @@ export function RealtimeSync() {
 
       const mapped = mapWatchlistRecord(
         e.record,
-        seasonForPlayer(e.record.player_id),
-        scoringFormat
+        scoringFormat,
+        seasonForPlayer(e.record.player_id)
       );
       queryClient.setQueryData<WatchlistWithDetails[]>(['watchlist', year, scoringFormat], (old) => {
         if (!old) return [mapped];

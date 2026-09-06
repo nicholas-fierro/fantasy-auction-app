@@ -19,6 +19,25 @@ function seedNewAuction(queryClient: QueryClient, newAuction: Auction) {
   queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
 }
 
+// History and profiles are keyed per league — invalidating the affected league
+// only keeps sibling leagues' cached history intact. An unknown league falls
+// back to the unkeyed prefix form rather than missing the update.
+function invalidateLeagueHistory(queryClient: QueryClient, leagueId: string | null) {
+  const historyKey = leagueId ? ['historical-values', leagueId] : ['historical-values'];
+  const profilesKey = leagueId ? ['computed-profiles', leagueId] : ['computed-profiles'];
+  queryClient.invalidateQueries({ queryKey: historyKey });
+  queryClient.invalidateQueries({ queryKey: profilesKey });
+}
+
+function leagueIdForAuction(queryClient: QueryClient, auctionId: string): string | null {
+  const cached = queryClient.getQueriesData<Auction[]>({ queryKey: ['auctions'] });
+  for (const [, auctions] of cached) {
+    const match = auctions?.find((auction) => auction.id === auctionId);
+    if (match) return match.league;
+  }
+  return null;
+}
+
 export function useCreateAuction() {
   const queryClient = useQueryClient();
   const { enterDraftRoom } = useNavigation();
@@ -30,8 +49,7 @@ export function useCreateAuction() {
     mutationFn: (input: CreateAuctionInput) => createAuction(input),
     onSuccess: (newAuction) => {
       seedNewAuction(queryClient, newAuction);
-      queryClient.invalidateQueries({ queryKey: ['historical-values'] });
-      queryClient.invalidateQueries({ queryKey: ['computed-profiles'] });
+      invalidateLeagueHistory(queryClient, newAuction.league);
       // A request started in A may finish after the user switches to B.
       // Refresh A's cache, but never navigate them back out of B.
       if (currentLeagueId.current === newAuction.league) {
@@ -63,8 +81,7 @@ export function useReplaceAuction() {
       queryClient.removeQueries({ queryKey: ['fantasy-teams', 'auction', activeId] });
       seedNewAuction(queryClient, newAuction);
       if (resolution === 'complete') {
-        queryClient.invalidateQueries({ queryKey: ['historical-values'] });
-        queryClient.invalidateQueries({ queryKey: ['computed-profiles'] });
+        invalidateLeagueHistory(queryClient, newAuction.league);
       }
       // A request started in A may finish after the user switches to B.
       // Refresh A's cache, but never navigate them back out of B.
@@ -84,15 +101,14 @@ export function useCompleteAuction() {
 
   return useMutation({
     mutationFn: (id: string) => completeAuction(id),
-    onSuccess: () => {
+    onSuccess: (completed) => {
       // The selection is deliberately left alone: a completed draft stays
       // selected and `useCompletedDraftRedirect` moves anyone viewing it to the
       // read-only archive of that same draft.
       queryClient.invalidateQueries({ queryKey: ['auctions'] });
       queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
       // A completed official auction's prices become historical data.
-      queryClient.invalidateQueries({ queryKey: ['historical-values'] });
-      queryClient.invalidateQueries({ queryKey: ['computed-profiles'] });
+      invalidateLeagueHistory(queryClient, completed.league);
     },
   });
 }
@@ -107,8 +123,7 @@ export function useDeleteAuction() {
       if (selectedAuctionId === deletedId) setSelectedAuctionId(null);
       queryClient.removeQueries({ queryKey: ['draft-picks', deletedId] });
       queryClient.removeQueries({ queryKey: ['fantasy-teams', 'auction', deletedId] });
-      queryClient.invalidateQueries({ queryKey: ['historical-values'] });
-      queryClient.invalidateQueries({ queryKey: ['computed-profiles'] });
+      invalidateLeagueHistory(queryClient, leagueIdForAuction(queryClient, deletedId));
       queryClient.invalidateQueries({ queryKey: ['auctions'] });
       queryClient.invalidateQueries({ queryKey: ['league-live-draft-counts'] });
     },

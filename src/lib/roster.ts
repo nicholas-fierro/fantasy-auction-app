@@ -40,26 +40,34 @@ export const DEFAULT_ROSTER_SETTINGS: RosterSettings = {
 };
 
 // Shared form validation; draft format is explicit, never inferred from paid slots.
+//
+// Counterpart: the settings block of POST /api/league-admin/create-league in
+// pb_hooks/league_admin_routes.pb.js enforces the same rules server-side. The
+// hook runs in PB's JSVM and cannot import this, so keep the two aligned by
+// hand — the bounds below mirror that block one for one.
+export const ROSTER_POSITION_ENUM = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DST'] as const;
+
 export function validateRosterSettings(settings: RosterSettings): string | null {
   if (!isDraftFormat(settings.draftFormat)) {
     return 'Choose a valid draft format';
   }
 
   const isSnake = settings.draftFormat === 'snake';
-  if (!Number.isFinite(settings.budget) || (isSnake ? settings.budget < 0 : settings.budget <= 0)) {
-    return isSnake ? 'Budget must be a non-negative number' : 'Budget must be a positive number';
+  if (!Number.isFinite(settings.budget) || (isSnake ? settings.budget < 0 : settings.budget <= 0) || settings.budget > 1000000) {
+    return isSnake ? 'Budget must be a non-negative number up to 1000000' : 'Budget must be a positive number up to 1000000';
   }
   if (!Number.isInteger(settings.paidAuctionSlots) || (isSnake ? settings.paidAuctionSlots !== 0 : settings.paidAuctionSlots <= 0)) {
     return isSnake ? 'Snake drafts must have zero paid slots' : 'Paid slots must be a positive integer';
   }
-  if (!Number.isFinite(settings.minimumBid) || settings.minimumBid < (isSnake ? 0 : 1)) {
-    return isSnake ? 'Minimum bid must be a non-negative number' : 'Minimum bid must be at least $1';
+  if (!Number.isFinite(settings.minimumBid) || settings.minimumBid < (isSnake ? 0 : 1) || settings.minimumBid > 1000000) {
+    return isSnake ? 'Minimum bid must be a non-negative number up to 1000000' : 'Minimum bid must be at least $1 and at most 1000000';
   }
-  if (!Number.isInteger(settings.benchSize) || settings.benchSize < 0) {
-    return 'Bench size must be a non-negative integer';
+  if (!Number.isInteger(settings.benchSize) || settings.benchSize < 0 || settings.benchSize > 50) {
+    return 'Bench size must be an integer from 0 to 50';
   }
-  if (settings.starterPositions.length === 0) {
-    return 'Add at least one starter position';
+  if (!Array.isArray(settings.starterPositions) || settings.starterPositions.length < 1 || settings.starterPositions.length > 50 ||
+    settings.starterPositions.some((p) => !(ROSTER_POSITION_ENUM as readonly string[]).includes(p))) {
+    return 'Use 1–50 starter positions: QB, RB, WR, TE, FLEX, K, DST.';
   }
   if (settings.paidAuctionSlots > settings.starterPositions.length + settings.benchSize) {
     return 'Paid slots cannot exceed starter positions plus bench size';

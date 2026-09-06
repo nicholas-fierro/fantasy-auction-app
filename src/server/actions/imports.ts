@@ -101,7 +101,7 @@ export async function calculateProjectedValues(
       'recalculate projected values',
       input
     );
-    return await calculateProjectedValuesCore(pb, input.year, input.leagueId);
+    return await calculateProjectedValuesCore(pb, input.year, input.leagueId, input.scoringFormat);
   } catch (error) {
     console.error('Error calculating projected values:', error);
     throw error instanceof Error

@@ -87,11 +87,11 @@ describe('validateRosterSettings', () => {
     );
 
     it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])('rejects budget %s', (budget) => {
-      expect(validateRosterSettings({ ...settings, budget })).toBe('Budget must be a positive number');
+      expect(validateRosterSettings({ ...settings, budget })).toBe('Budget must be a positive number up to 1000000');
     });
 
     it.each([0, 0.5, -1, Number.NaN, Number.POSITIVE_INFINITY])('rejects minimum bid %s', (minimumBid) => {
-      expect(validateRosterSettings({ ...settings, minimumBid })).toBe('Minimum bid must be at least $1');
+      expect(validateRosterSettings({ ...settings, minimumBid })).toBe('Minimum bid must be at least $1 and at most 1000000');
     });
 
     it('requires enough budget to fill every paid slot at the minimum bid', () => {
@@ -109,9 +109,9 @@ describe('validateRosterSettings', () => {
 
   it.each(['auction', 'hybrid', 'snake'] as const)('validates roster shape for %s', (draftFormat) => {
     const settings = draftFormat === 'snake' ? snakeSettings : { ...DEFAULT_ROSTER_SETTINGS, draftFormat };
-    expect(validateRosterSettings({ ...settings, starterPositions: [] })).toBe('Add at least one starter position');
+    expect(validateRosterSettings({ ...settings, starterPositions: [] })).toBe('Use 1–50 starter positions: QB, RB, WR, TE, FLEX, K, DST.');
     for (const benchSize of [-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) {
-      expect(validateRosterSettings({ ...settings, benchSize })).toBe('Bench size must be a non-negative integer');
+      expect(validateRosterSettings({ ...settings, benchSize })).toBe('Bench size must be an integer from 0 to 50');
     }
     expect(validateRosterSettings({ ...settings, benchSize: 0 })).toBeNull();
   });
@@ -119,5 +119,17 @@ describe('validateRosterSettings', () => {
   it('rejects an unknown draft format', () => {
     expect(validateRosterSettings({ ...DEFAULT_ROSTER_SETTINGS, draftFormat: 'unknown' as DraftFormat }))
       .toBe('Choose a valid draft format');
+  });
+
+  it.each(['auction', 'hybrid', 'snake'] as const)('matches the create-league route bounds for %s', (draftFormat) => {
+    const settings = draftFormat === 'snake' ? snakeSettings : { ...DEFAULT_ROSTER_SETTINGS, draftFormat };
+    expect(validateRosterSettings({ ...settings, budget: 1000001 })).not.toBeNull();
+    expect(validateRosterSettings({ ...settings, minimumBid: 1000001 })).not.toBeNull();
+    expect(validateRosterSettings({ ...settings, benchSize: 51 })).not.toBeNull();
+    expect(validateRosterSettings({ ...settings, starterPositions: ['XX'] })).toBe(
+      'Use 1–50 starter positions: QB, RB, WR, TE, FLEX, K, DST.');
+    expect(validateRosterSettings({
+      ...settings, starterPositions: Array.from({ length: 51 }, () => 'QB'),
+    })).not.toBeNull();
   });
 });

@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildHistory, buildPricedPicks, loadFromDump, loadFromPocketBase } from '@/server/lib/value-data';
-import { leagueValueModelConfig } from '@/lib/league-history';
+import { leagueValueModelConfig, preferAuction, selectHistoryAuctions } from '@/lib/league-history';
 import { DEFAULT_ROSTER_SETTINGS, type RosterSettings } from '@/lib/roster';
 
 function fixture(settings: Partial<RosterSettings> = {}) {
@@ -63,16 +63,16 @@ function dump(data: unknown): string {
   writeFileSync(path, JSON.stringify(data));
   return path;
 }
-const options = { leagueId: 'league-1' };
+const options = { leagueId: 'league-1', scoringFormat: 'half' as const };
 
 describe('league-scoped model data', () => {
   it.each(['half', 'std', 'ppr'] as const)('uses the selected league %s board', async scoringFormat => {
-    const data = await loadFromPocketBase(fakePocketBase(fixture({ scoringFormat })), options);
+    const data = await loadFromPocketBase(fakePocketBase(fixture({ scoringFormat })), { ...options, scoringFormat });
     expect(data.seasons[0]).toMatchObject(scoringFormat === 'ppr'
       ? { rank: 3, position_rank: 2 } : { rank: 12, position_rank: 5 });
   });
   it('requires a league and rejects a scoring override for another board', async () => {
-    await expect(loadFromPocketBase(fakePocketBase(), { leagueId: '' })).rejects.toThrow('league id is required');
+    await expect(loadFromPocketBase(fakePocketBase(), { leagueId: '', scoringFormat: 'half' })).rejects.toThrow('league id is required');
     await expect(loadFromPocketBase(fakePocketBase(), { ...options, scoringFormat: 'ppr' })).rejects.toThrow('Selected league uses half');
   });
   it('scopes before collapse and keeps live and offline inputs identical', async () => {
@@ -91,7 +91,7 @@ describe('league-scoped model data', () => {
     const raw = fixture();
     expect(() => loadFromDump(dump({ ...raw, leagues: undefined }), options)).toThrow('selected league');
     expect(() => loadFromDump(dump({ ...raw, fantasy_teams: undefined }), options)).toThrow('metadata');
-    expect(() => loadFromDump(dump(raw), { leagueId: 'missing' })).toThrow('selected league');
+    expect(() => loadFromDump(dump(raw), { leagueId: 'missing', scoringFormat: 'half' as const })).toThrow('selected league');
   });
   it.each([
     { draftFormat: 'snake' as const, budget: 0, paidAuctionSlots: 0 },
@@ -118,5 +118,26 @@ describe('league-scoped model data', () => {
   it('normalizes to league budget and paid slots', async () => {
     const data = await loadFromPocketBase(fakePocketBase(fixture({ budget: 100, paidAuctionSlots: 5 })), options);
     expect(leagueValueModelConfig(data.scope)).toMatchObject({ budget: 1200, draftedPoolSize: 60 });
+  });
+});
+
+describe('preferAuction', () => {
+  const base = { id: 'a', year: 2025, type: 'official', status: 'active', league: 'league-1', created: '2025-01-01' };
+  it.each([
+    ['completed beats active', { ...base, id: 'b', status: 'completed' }, base, true],
+    ['active loses to completed', base, { ...base, id: 'b', status: 'completed' }, false],
+    ['newer created wins', { ...base, id: 'b', created: '2025-02-01' }, base, true],
+    ['older created loses', base, { ...base, id: 'b', created: '2025-02-01' }, false],
+    ['higher id breaks a created tie', { ...base, id: 'b' }, base, true],
+    ['lower id loses a created tie', base, { ...base, id: 'b' }, false],
+  ])('%s', (_name, candidate, incumbent, expected) => {
+    expect(preferAuction(candidate, incumbent)).toBe(expected);
+  });
+
+  it('picks the completed same-year auction through selectHistoryAuctions', () => {
+    const scope = { leagueId: 'league-1', settings: DEFAULT_ROSTER_SETTINGS, teamCount: 12 };
+    const active = { ...base, id: 'active', status: 'active', created: '2025-02-01' };
+    const completed = { ...base, id: 'completed', status: 'completed', created: '2025-01-01' };
+    expect(selectHistoryAuctions([active, completed], scope).map((row) => row.id)).toEqual(['completed']);
   });
 });

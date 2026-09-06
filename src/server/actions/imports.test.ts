@@ -124,6 +124,6 @@ describe('calculateProjectedValues', () => {
 
     await calculateProjectedValues(request);
 
-    expect(core.calculateProjectedValuesCore).toHaveBeenCalledWith(fake.pb, 2026, 'league-1');
+    expect(core.calculateProjectedValuesCore).toHaveBeenCalledWith(fake.pb, 2026, 'league-1', 'ppr');
   });
 });

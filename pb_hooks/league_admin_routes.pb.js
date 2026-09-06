@@ -18,9 +18,26 @@
 // specific reason is server-log-only.
 
 // ---- POST /api/league-admin/create-league (authenticated app users) ----
+//
+// Rate limit: 5 creations per 15 minutes per user id. Each call writes a
+// league plus up to 32 teams in a transaction, so an unauthenticated-style
+// loop by any invited member would inflate the instance without bound.
+// Same in-process fixed-window pattern as users_login_rate_limit.pb.js.
 routerAdd("POST", "/api/league-admin/create-league", (e) => {
   if (!e.auth || e.auth.collection().name !== "users") {
     return e.json(401, { code: "unauthorized" });
+  }
+  if (!globalThis.__createLeagueBuckets) {
+    globalThis.__createLeagueBuckets = {};
+  }
+  const now = Date.now();
+  const bucket = globalThis.__createLeagueBuckets[e.auth.id];
+  if (!bucket || now >= bucket.resetAt) {
+    globalThis.__createLeagueBuckets[e.auth.id] = { count: 1, resetAt: now + 15 * 60 * 1000 };
+  } else if (bucket.count >= 5) {
+    return e.json(429, { code: "rate_limited", message: "Too many leagues created. Try again in a few minutes." });
+  } else {
+    bucket.count += 1;
   }
   const body = e.requestInfo().body || {};
   const invalid = (message) => e.json(400, { code: "invalid_input", message });
@@ -40,6 +57,10 @@ routerAdd("POST", "/api/league-admin/create-league", (e) => {
   if (!Number.isInteger(body.commissionerTeamIndex) || body.commissionerTeamIndex < 0 || body.commissionerTeamIndex >= names.length) {
     return invalid("Choose your team.");
   }
+  // Settings rules mirror validateRosterSettings() in src/lib/roster.ts (plus
+  // the scoring-format check, which the shared validator leaves to league
+  // context). The hook cannot import from src/ (PB JSVM), so update both when
+  // the rules change.
   const s = body.settings;
   if (!s || typeof s !== "object" || Array.isArray(s)) return invalid("League settings are required.");
   if (!["auction", "hybrid", "snake"].includes(s.draftFormat)) return invalid("Choose a valid draft format.");

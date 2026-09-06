@@ -16,6 +16,8 @@ import { PlayerAvatar } from '@/components/player-avatar';
 import { EditableAuctionValue } from '@/components/editable-auction-value';
 import { PositionFilter } from '@/components/position-filter';
 import { useAllPlayers, useUpdatePlayerAuctionValues } from '@/hooks/use-players';
+import { useLeague } from '@/hooks/use-league';
+import { SCORING_FORMAT_LABELS } from '@/lib/fantasy-scoring';
 import { useActiveDraft } from '@/contexts/active-draft-context';
 import { useNavigation, type FilterPosition } from '@/contexts/navigation-context';
 import { useAuction } from '@/contexts/auction-context';
@@ -86,6 +88,7 @@ export function PlayersTable() {
   } = useNavigation();
   const { data: draftPicks = [] } = useAllDraftPicks();
   const { isReadOnly, selectedYear } = useAuction();
+  const { settings } = useLeague();
   const playerActions = usePlayerActions();
   const isSnakeLeague = useIsSnakeLeague();
   const userTeamId = useUserTeamId();
@@ -428,7 +431,7 @@ export function PlayersTable() {
               <TableRow>
                 <TableCell colSpan={columnCount} className="text-center py-8">
                   {players.length === 0
-                    ? `No player data for ${selectedYear} — import it in the Import view.`
+                    ? `No ${SCORING_FORMAT_LABELS[settings.scoringFormat]} rankings for ${selectedYear} — import them in the Import view.`
                     : deferredSearchTerm
                       ? 'No players found matching your search.'
                       : 'No players available.'}

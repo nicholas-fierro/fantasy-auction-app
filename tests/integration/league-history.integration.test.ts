@@ -114,26 +114,26 @@ describe('same-season league history isolation', () => {
       expect(selectedTeams.map(team => team.id).sort()).toEqual(teams[index].map(team => team.id).sort());
     }
 
-    const data = await loadFromPocketBase(member, { leagueId: leagues[0].id });
+    const data = await loadFromPocketBase(member, { leagueId: leagues[0].id, scoringFormat: 'half' });
     expect(data.auctions.map(row => row.id)).toEqual([auctions[0].id]);
     expect(data.picks.every(row => row.auction_id === auctions[0].id)).toBe(true);
     expect(buildHistory(data, 2032)).toEqual(history.map(row => ({
       year: row.year, position: row.position, rank: row.rank, position_rank: row.position_rank,
       price: row.price, external: false,
     })));
-    expect(await loadFromPocketBase(admin, { leagueId: leagues[0].id })).toEqual(data);
+    expect(await loadFromPocketBase(admin, { leagueId: leagues[0].id, scoringFormat: 'half' })).toEqual(data);
   });
 
   it('writes the same projected prices as the CLI model path, using the selected league', async () => {
-    const data = await loadFromPocketBase(admin, { leagueId: leagues[0].id });
+    const data = await loadFromPocketBase(admin, { leagueId: leagues[0].id, scoringFormat: 'half' });
     const targets = buildTargets(data, 2032);
     const expected = computeAuctionEstimates(buildHistory(data, 2032), targets.map(toValueTarget), 2032, leagueValueModelConfig(data.scope));
     expect([...expected.values()].some(value => value > 0)).toBe(true);
-    await calculateProjectedValuesCore(member, 2032, leagues[0].id);
+    await calculateProjectedValuesCore(member, 2032, leagues[0].id, 'half');
     const rows = await admin.collection('player_seasons').getFullList({ filter: 'year = 2032' });
     expect(rows).toHaveLength(targets.length);
     for (const row of rows) expect(row.projected_auction_value).toBe(expected.get(row.id) ?? 0);
-    expect(await calculateProjectedValuesCore(member, 2032, leagues[0].id)).toMatchObject({ updated: 0 });
+    expect(await calculateProjectedValuesCore(member, 2032, leagues[0].id, 'half')).toMatchObject({ updated: 0 });
   });
 
   it('admits external comps only for matching auction leagues and never into profiles', async () => {
@@ -148,22 +148,22 @@ describe('same-season league history isolation', () => {
     expect((await computeHistoricalValues(leagues[0].id, member)).some(row => row.source === 'external' && row.price === 23)).toBe(true);
     for (const change of [{ budget: 250 }, { paidAuctionSlots: 8 }, { draftFormat: 'snake' }]) {
       await admin.collection('leagues').update(leagues[0].id, { settings: { ...DEFAULT_ROSTER_SETTINGS, ...change } });
-      const data = await loadFromPocketBase(member, { leagueId: leagues[0].id });
+      const data = await loadFromPocketBase(member, { leagueId: leagues[0].id, scoringFormat: 'half' });
       expect(data.auctions.some(row => row.external)).toBe(false);
       expect((await computeHistoricalValues(leagues[0].id, member)).some(row => row.external)).toBe(false);
     }
     await admin.collection('leagues').update(leagues[0].id, { settings: DEFAULT_ROSTER_SETTINGS });
     await admin.collection('fantasy_teams').update(teams[0][11].id, { league: leagues[1].id });
-    expect((await loadFromPocketBase(member, { leagueId: leagues[0].id })).auctions.some(row => row.external)).toBe(false);
+    expect((await loadFromPocketBase(member, { leagueId: leagues[0].id, scoringFormat: 'half' })).auctions.some(row => row.external)).toBe(false);
     await admin.collection('fantasy_teams').update(teams[0][11].id, { league: leagues[0].id });
 
     await admin.collection('leagues').update(leagues[1].id, { settings: {
       ...DEFAULT_ROSTER_SETTINGS, draftFormat: 'snake', budget: 0, paidAuctionSlots: 0, minimumBid: 0,
     } });
     expect(await computeHistoricalValues(leagues[1].id, member)).toEqual([]);
-    const snake = await loadFromPocketBase(member, { leagueId: leagues[1].id });
+    const snake = await loadFromPocketBase(member, { leagueId: leagues[1].id, scoringFormat: 'half' });
     expect(buildHistory(snake, 2032)).toEqual([]);
-    await expect(calculateProjectedValuesCore(member, 2032, leagues[1].id)).rejects.toThrow('Snake leagues');
+    await expect(calculateProjectedValuesCore(member, 2032, leagues[1].id, 'half')).rejects.toThrow('Snake leagues');
     expect([...(await loadTeamProfiles(member, leagues[1].id)).keys()].sort()).toEqual(teams[1].map(team => team.id).sort());
   });
 });
