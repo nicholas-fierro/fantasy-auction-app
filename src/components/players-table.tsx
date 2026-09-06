@@ -50,9 +50,9 @@ import type { PlayerInjury } from '@/lib/sleeper-injuries';
 import { useProjectedPickLines } from '@/hooks/use-projected-pick-lines';
 import type { ProjectedTeamPick } from '@/lib/snake-pick-projection';
 import { compareBoardPlayers, deriveAdp, type BoardSort } from '@/lib/adp';
-import { isExpectedGoneBeforeNextTurn, picksUntilNextTurn } from '@/lib/snake-survival';
-import { useIsSnakeLeague, useUserTeamId } from '@/hooks/use-league';
-import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
+import { isExpectedGoneBeforeNextTurn } from '@/lib/snake-survival';
+import { useIsSnakeLeague } from '@/hooks/use-league';
+import { useSnakeSurvival } from '@/hooks/use-snake-survival';
 
 // Every column stays in the DOM on mobile — the low-value ones are only
 // display:none via `max-md:hidden`. Base count is 14; the rendered count
@@ -91,17 +91,9 @@ export function PlayersTable() {
   const { settings } = useLeague();
   const playerActions = usePlayerActions();
   const isSnakeLeague = useIsSnakeLeague();
-  const userTeamId = useUserTeamId();
-  const { data: teams = [] } = useAuctionTeams();
 
-  // Survival signal (NFI-83): picks until the user's next turn, from the
-  // snake rotation. Absent entirely when the board carries no ADP data.
-  const adpAvailable = players.some(player => deriveAdp(player.rank, player.ecr_vs_adp) != null);
-  const userDraftOrder = teams.find(team => team.id === userTeamId)?.draft_order ?? null;
-  const picksAway = isSnakeLeague && userTeamId
-    ? picksUntilNextTurn(draftPicks.length, userDraftOrder, teams.length)
-    : null;
-  const showSurvival = isSnakeLeague && adpAvailable && picksAway != null;
+  // Survival signal (NFI-83), shared with the watchlist via useSnakeSurvival.
+  const { showSurvival, picksAway } = useSnakeSurvival();
   const nextTurnOverall = draftPicks.length + 1 + (picksAway ?? 0);
   // Base 14 minus the two price columns in a snake league, plus the survival
   // column when it renders.
@@ -477,6 +469,7 @@ export function PlayersTable() {
                       isWatched={watchlistItemId !== undefined}
                       watchlistItemId={watchlistItemId}
                       isSnakeLeague={isSnakeLeague}
+                      showSurvival={showSurvival}
                       survival={showSurvival
                         ? isExpectedGoneBeforeNextTurn(player, picksAway, draftPicks.length + 1)
                         : null}
@@ -560,6 +553,7 @@ interface PlayerRowProps {
   watchlistItemId: string | undefined;
   dataIndex: number;
   isSnakeLeague: boolean;
+  showSurvival: boolean;
   survival: boolean | null;
   onAction: (player: Player) => void;
   onUpdateProjected: (playerId: string, seasonId: string, value: number | null) => void;
@@ -582,6 +576,7 @@ const PlayerRow = React.memo(React.forwardRef<HTMLTableRowElement, PlayerRowProp
   watchlistItemId,
   dataIndex,
   isSnakeLeague,
+  showSurvival,
   survival,
   onAction,
   onUpdateProjected,
@@ -677,9 +672,11 @@ const PlayerRow = React.memo(React.forwardRef<HTMLTableRowElement, PlayerRowProp
         <StarRating value={player.sos} />
       </TableCell>
       <TableCell className="text-center max-md:hidden">{player.bye_week}</TableCell>
-      {survival != null && (
+      {showSurvival && (
         <TableCell>
-          {survival ? (
+          {survival == null ? (
+            <span className="text-xs text-gray-400">—</span>
+          ) : survival ? (
             <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
               Gone
             </span>

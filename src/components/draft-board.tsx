@@ -26,6 +26,9 @@ export function DraftBoard({ embedded }: { embedded?: boolean }) {
   const { canPickAnyTeam, userTeamId } = useDraftRole();
   const { settings } = useLeague();
   const isSnakeLeague = useIsSnakeLeague();
+  // Format-level like the pick-entry path (NFI-82): clickable from pick one,
+  // even before the auto mode effect flips the phase toggle.
+  const isSnakeDraft = isSnakeLeague || isSnakeMode;
   const [snakePickModal, setSnakePickModal] = useState<{
     isOpen: boolean;
     team: FantasyTeam | null;
@@ -88,9 +91,21 @@ export function DraftBoard({ embedded }: { embedded?: boolean }) {
     );
   }, [teams, draftPicks.length, settings.paidAuctionSlots]);
 
+  // Round label that degrades to the bare pick number when the board is in a
+  // recoverable state getSnakeRound rejects: teams still loading (teamCount
+  // 0) or a league switched to snake with nonzero paid slots. A throw here
+  // would take down the whole board instead of one cell.
+  function snakeRoundLabel(pickOrder: number, teamCount: number, paidAuctionSlots: number): string {
+    try {
+      return `R${getSnakeRound(pickOrder, teamCount, paidAuctionSlots)} · P${pickOrder}`;
+    } catch {
+      return `P${pickOrder}`;
+    }
+  }
+
   // Handle cell click for snake draft
   const handleCellClick = (teamIndex: number, round: number) => {
-    if (!isSnakeMode || isReadOnly || !draftGrid) return;
+    if (!isSnakeDraft || isReadOnly || !draftGrid) return;
 
     const { sortedTeams } = draftGrid;
     const team = sortedTeams[teamIndex];
@@ -200,7 +215,7 @@ export function DraftBoard({ embedded }: { embedded?: boolean }) {
                 let cellClassName = "h-[46px]";
                 let isClickable = false;
 
-                if (isSnakeMode && !isReadOnly && !pick && team) {
+                if (isSnakeDraft && !isReadOnly && !pick && team) {
                   const teamPickCount = getTeamRoundForPick(team.id, draftPicks) - 1; // 0-based
 
                   // Check if this is the current team's next pick
@@ -230,7 +245,7 @@ export function DraftBoard({ embedded }: { embedded?: boolean }) {
                       className={cellClassName}
                       roundPickLabel={
                         isSnakeLeague && pick
-                          ? `R${getSnakeRound(pick.pick_order, sortedTeams.length, settings.paidAuctionSlots)} · P${pick.pick_order}`
+                          ? snakeRoundLabel(pick.pick_order, sortedTeams.length, settings.paidAuctionSlots)
                           : null
                       }
                     />

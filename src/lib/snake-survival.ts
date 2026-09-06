@@ -29,13 +29,20 @@ export function picksUntilNextTurn(
 // next turn. No ADP (null rank or absent delta) yields no prediction, never an
 // optimistic guess. Callers hide the signal entirely when the board carries no
 // ADP data (adpAvailable false).
+//
+// Two guards keep the flag honest. An ADP already behind the current pick is a
+// faller the room passed on, not a player about to be taken — returning false
+// rather than flagging a visible player "Gone". And with no picks between now
+// and the user's turn there is no window for the player to go missing in, so
+// the answer is null (callers suppress the column on the user's own turn).
 export function isExpectedGoneBeforeNextTurn(
   player: SurvivalInput,
   picksAway: number | null,
   currentOverallPick: number,
 ): boolean | null {
-  if (picksAway == null) return null;
+  if (picksAway == null || picksAway <= 0) return null;
   const adp = deriveAdp(player.rank, player.ecr_vs_adp);
   if (adp == null) return null;
+  if (adp < currentOverallPick) return false;
   return adp < currentOverallPick + picksAway;
 }

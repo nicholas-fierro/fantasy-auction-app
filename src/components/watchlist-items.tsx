@@ -29,11 +29,10 @@ import { PlayerNameButton } from '@/components/player-name-button';
 import { PlayerActionButton } from '@/components/player-action-button';
 import { useWatchlist, useUpdateWatchlistOrder, useRemoveFromWatchlist } from '@/hooks/use-watchlist';
 import { useAllDraftPicks } from '@/hooks/use-draft-picks';
+import { useIsSnakeLeague } from '@/hooks/use-league';
 import { usePlayerActions } from '@/hooks/use-player-actions';
-import { useAuctionTeams } from '@/hooks/use-fantasy-teams';
-import { useIsSnakeLeague, useUserTeamId } from '@/hooks/use-league';
-import { deriveAdp } from '@/lib/adp';
-import { isExpectedGoneBeforeNextTurn, picksUntilNextTurn } from '@/lib/snake-survival';
+import { isExpectedGoneBeforeNextTurn } from '@/lib/snake-survival';
+import { useSnakeSurvival } from '@/hooks/use-snake-survival';
 import { useActiveDraft } from '@/contexts/active-draft-context';
 import { WatchlistWithDetails } from '@/server/types/watchlist';
 import { WatchlistFilter } from '@/components/watchlist-sidebar';
@@ -165,20 +164,13 @@ interface WatchlistItemsProps {
 export function WatchlistItems({ filter, selectedPositions }: WatchlistItemsProps) {
   const { data: watchlist = [], isLoading } = useWatchlist();
   const { data: draftPicks = [] } = useAllDraftPicks();
-  const { data: teams = [] } = useAuctionTeams();
-  const userTeamId = useUserTeamId();
   const isSnakeLeague = useIsSnakeLeague();
   const updateWatchlistOrder = useUpdateWatchlistOrder();
   const playerActions = usePlayerActions();
 
-  // Same survival signal as the board (NFI-83), gated on board-wide ADP.
-  const adpAvailable = watchlist.some(item => deriveAdp(item.player.rank, item.player.ecr_vs_adp) != null);
-  const userDraftOrder = teams.find(team => team.id === userTeamId)?.draft_order ?? null;
-  const picksAway = isSnakeLeague && userTeamId
-    ? picksUntilNextTurn(draftPicks.length, userDraftOrder, teams.length)
-    : null;
-  const showSurvival = isSnakeLeague && adpAvailable && picksAway != null;
-  const currentOverall = draftPicks.length + 1;
+  // Same survival signal as the board (NFI-83), from the shared hook so the
+  // two surfaces cannot disagree about board-wide ADP.
+  const { showSurvival, picksAway, currentOverall } = useSnakeSurvival();
 
   const [optimisticItems, setOptimisticItems] = useState<WatchlistWithDetails[]>([]);
   const [isDragging, setIsDragging] = useState(false);

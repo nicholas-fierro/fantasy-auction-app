@@ -773,9 +773,13 @@ shows round and pick (`R3 · P7`) in place of price. Tier-cliff alerts carry ove
 untouched. The board and watchlist flag players unlikely to survive to the
 user's next snake turn, from derived ADP and the snake rotation, with no
 prediction for players lacking ADP and no signal at all when the board carries
-no ADP data. Clicking Draft in a snake draft records the pick immediately for
-the team on the clock — no modal — preserving the two pick-entry lanes
-(commissioner any team, member own team on own turn).
+no ADP data. The row and watchlist Draft buttons record the pick immediately
+for the team on the clock — no modal — preserving the two pick-entry lanes
+(commissioner any team, member own team on own turn); the pick-entry path keys
+off the format predicate (`isSnakeLeague || isSnakeMode`), never the phase
+toggle alone. Clicking an empty board cell still opens the picker modal — that
+surface chooses the player rather than confirming one, so one-click does not
+apply to it.
 
 **Why.** Every auction affordance is meaningless without prices and several are
 actively misleading ($0 budgets, blank price cells). The format predicate —

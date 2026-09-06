@@ -38,4 +38,14 @@ describe('isExpectedGoneBeforeNextTurn', () => {
     expect(isExpectedGoneBeforeNextTurn({ id: 'b', rank: 10, ecr_vs_adp: null }, 5, 13)).toBeNull();
     expect(isExpectedGoneBeforeNextTurn({ id: 'c', rank: 10, ecr_vs_adp: 5 }, null, 13)).toBeNull();
   });
+
+  it('never flags a faller sitting on the board as gone', () => {
+    // ADP 5 still undrafted at overall pick 40: the room passed, not a player
+    // about to be taken.
+    expect(isExpectedGoneBeforeNextTurn({ id: 'a', rank: 3, ecr_vs_adp: 2 }, 11, 40)).toBe(false);
+  });
+
+  it('returns null on the user turn instead of flagging the whole board', () => {
+    expect(isExpectedGoneBeforeNextTurn({ id: 'a', rank: 10, ecr_vs_adp: 7 }, 0, 13)).toBeNull();
+  });
 });

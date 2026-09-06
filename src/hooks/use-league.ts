@@ -23,10 +23,13 @@ export function useDraftFormat(): DraftFormat {
 
 // Single predicate gating every piece of auction chrome in a snake-format
 // league (NFI-82): budget/max-bid summaries, nomination UI + subscription,
-// price entry, price columns, mock bid controls, watchlist market nudge.
-// Derived from the league's declared draft format — never from phase state
-// (isSnakeMode) or paidAuctionSlots — so hybrid snake-phase rooms keep
-// auction chrome and the gates cannot drift apart per component.
+// price entry, and price columns. Derived from the league's declared draft
+// format — never from phase state (isSnakeMode) or paidAuctionSlots — so
+// hybrid snake-phase rooms keep auction chrome and the gates cannot drift
+// apart per component. Not listed: the sim's auction bid controls and the
+// watchlist market nudge need no gating — a snake league's sim never enters
+// the auction phase (zero paid slots), so those branches are structurally
+// unreachable there rather than predicate-gated.
 export function useIsSnakeLeague(): boolean {
   return useDraftFormat() === 'snake';
 }
