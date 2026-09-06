@@ -13,13 +13,15 @@
 // Usage:
 //   npx tsx scripts/backtest-value-model.ts --league <league-id> --data <dump.json> [--scoring-format half]
 //   PB_SUPERUSER_EMAIL=... PB_SUPERUSER_PASSWORD=... npx tsx scripts/backtest-value-model.ts --league <league-id> [--scoring-format ppr]
-// The dump's season rows carry every board; the format flag selects which one
-// the loaders flatten into rank / position_rank.
+// The dump's season rows carry every board; an omitted flag prices the
+// league's own board, while an explicit flag asserts against it.
 
 import PocketBase from 'pocketbase';
+import { readFileSync } from 'node:fs';
 import { isScoringFormat, type ScoringFormat } from '../src/lib/fantasy-scoring';
 import { computeAuctionEstimates, type HistoryRow } from '../src/lib/value-model';
-import { leagueValueModelConfig } from '../src/lib/league-history';
+import { mapLeagueRecord } from '../src/lib/league';
+import { leagueValueModelConfig, loadLeagueHistoryScope } from '../src/lib/league-history';
 import {
   buildHistory,
   buildPricedPicks,
@@ -37,13 +39,22 @@ const POSITIONS = ['QB', 'RB', 'WR', 'TE'];
 interface CliArgs {
   leagueId: string;
   data: string | null;
-  scoringFormat: ScoringFormat;
+  scoringFormat: ScoringFormat | undefined;
+}
+
+// Offline dumps carry league metadata; read the league's own board when the
+// flag is omitted, mirroring the live path below (and calc-projected-values).
+function dumpLeagueFormat(path: string, leagueId: string): ScoringFormat {
+  const raw = JSON.parse(readFileSync(path, 'utf8')) as { leagues?: Array<{ id: string }> };
+  const league = raw.leagues?.find((row) => row.id === leagueId);
+  if (!league) throw new Error('The dump must include the selected league and fantasy_teams metadata');
+  return mapLeagueRecord(league as never).settings.scoringFormat;
 }
 
 function parseArgs(argv: string[]): CliArgs {
   let data: string | null = null;
   let leagueId = '';
-  let scoringFormat: ScoringFormat = 'half';
+  let scoringFormat: ScoringFormat | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--data') data = argv[++i] ?? '';
@@ -116,9 +127,13 @@ function fmt(n: number): string {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
+  // An omitted --scoring-format prices the league's own board. The format is
+  // resolved explicitly here so the loaders always receive a required value —
+  // an explicit flag still asserts against the league and aborts on mismatch.
   let data: ValueData;
   if (args.data) {
-    data = loadFromDump(args.data, { leagueId: args.leagueId, scoringFormat: args.scoringFormat });
+    const scoringFormat = args.scoringFormat ?? dumpLeagueFormat(args.data, args.leagueId);
+    data = loadFromDump(args.data, { leagueId: args.leagueId, scoringFormat });
     console.log(`data: offline dump ${args.data}\n`);
   } else {
     const pb = new PocketBase(POCKETBASE_URL);
@@ -128,7 +143,9 @@ async function main(): Promise<void> {
       throw new Error('PB_SUPERUSER_EMAIL and PB_SUPERUSER_PASSWORD are required (or pass --data)');
     }
     await pb.collection('_superusers').authWithPassword(email, password);
-    data = await loadFromPocketBase(pb, { leagueId: args.leagueId, scoringFormat: args.scoringFormat });
+    const scoringFormat = args.scoringFormat
+      ?? (await loadLeagueHistoryScope(pb, args.leagueId)).settings.scoringFormat;
+    data = await loadFromPocketBase(pb, { leagueId: args.leagueId, scoringFormat });
     console.log('data: PocketBase\n');
   }
 
